@@ -91,10 +91,11 @@ impl Oyun {
         let kare_gorevi = kare_gorevi.unwrap_or_else(|| Box::new(|_, _, _| OyunAkisi::DevamEt));
 
         println!(
-            "{} başlatılıyor — {}×{} — {} sahne — {} varlık — {} yüklü mod — mod klasörü: {}",
+            "{} başlatılıyor — {}×{} — {:?} — {} sahne — {} varlık — {} yüklü mod — mod klasörü: {}",
             ayarlar.baslik,
             cozunurluk.genislik,
             cozunurluk.yukseklik,
+            dunya.boyut(),
             sahneler.len(),
             dunya.varliklar().len(),
             mod_yoneticisi.yuklu_modlar().len(),
@@ -127,11 +128,14 @@ pub mod onsoz {
     pub use crate::Oyun;
     pub use tgame_cekirdek::{Cozunurluk, OyunHatasi, OyunSonucu};
     pub use tgame_girdi::{Girdi, Tus};
-    pub use tgame_matematik::{Renk, Vektor2};
+    pub use tgame_matematik::{Matris4, Renk, Vektor2, Vektor3};
     pub use tgame_mod::{ModBilgisi, ModYoneticisi};
     pub use tgame_pencere::OyunAkisi;
     pub use tgame_sahne::Sahne;
-    pub use tgame_varlik::{Donusum2B, Dunya, Gorunum2B, Kamera2B, Varlik, VarlikKimligi};
+    pub use tgame_varlik::{
+        Donusum2B, Donusum3B, Dunya, DunyaBoyutu, Gorunum2B, Gorunum3B, Kamera2B, Kamera3B,
+        Varlik, VarlikKimligi,
+    };
     pub use tgame_zaman::Zaman;
 }
 
@@ -162,7 +166,7 @@ mod testler {
             .cozunurluk(1024, 768)
             .mod_klasoru("eklentiler")
             .sahne_ekle(Sahne::yeni("Baslangic"))
-            .dunya(Dunya::yeni())
+            .dunya(Dunya::yeni_3b())
             .her_kare(|_, _, _| OyunAkisi::DevamEt);
 
         assert_eq!(oyun.ayarlar.cozunurluk, Cozunurluk::yeni(1024, 768));
