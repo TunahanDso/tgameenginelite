@@ -388,9 +388,7 @@ mod testler {
 
     #[test]
     fn cok_buyuk_piksel_degeri_guvenli_sinirlanir() {
-        assert_eq!(
-            piksel_f32(u32::MAX).to_bits(),
-            f32::from(u16::MAX).to_bits()
-        );
+        let beklenen = f32::from(u16::MAX).to_bits();
+        assert_eq!(piksel_f32(u32::MAX).to_bits(), beklenen);
     }
 }
