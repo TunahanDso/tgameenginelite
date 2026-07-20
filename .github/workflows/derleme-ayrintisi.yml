@@ -22,5 +22,10 @@ jobs:
           Set-Location kaynak
           $cikti = cargo check --workspace --all-targets 2>&1
           $kod = $LASTEXITCODE
-          $cikti | Select-Object -Last 160
+          $cikti | Where-Object {
+            $_ -match '^error' -or
+            $_ -match '^\s*-->' -or
+            $_ -match '^\s*= (help|note)' -or
+            $_ -match 'expected|found|unknown field|no method|mismatched types|cannot|not found'
+          } | Select-Object -Last 80
           exit $kod
