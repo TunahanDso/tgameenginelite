@@ -5,9 +5,11 @@ members = [
     "crates/tgame-cekirdek",
     "crates/tgame-girdi",
     "crates/tgame-grafik",
+    "crates/tgame-matematik",
     "crates/tgame-pencere",
     "crates/tgame-sahne",
     "crates/tgame-mod",
+    "crates/tgame-varlik",
     "crates/tgame-zaman",
     "examples/ilk-oyun",
 ]
