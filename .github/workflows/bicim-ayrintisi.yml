@@ -1,0 +1,22 @@
+name: Biçim Ayrıntısı
+
+on:
+  push:
+    branches:
+      - agent/ilk-moduler-iskelet
+
+permissions:
+  contents: read
+
+jobs:
+  ayrinti:
+    name: Rustfmt farkını göster
+    runs-on: windows-latest
+
+    steps:
+      - name: Repoyu al ve biçimi denetle
+        shell: pwsh
+        run: |
+          git clone --branch agent/ilk-moduler-iskelet --depth 1 https://github.com/${{ github.repository }} kaynak
+          Set-Location kaynak
+          cargo fmt --all --check
