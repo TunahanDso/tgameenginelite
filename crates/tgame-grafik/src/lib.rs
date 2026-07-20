@@ -336,7 +336,7 @@ fn cizim_hatti_olustur(
             module: &golgelendirici,
             entry_point: Some("tepe_ana"),
             compilation_options: wgpu::PipelineCompilationOptions::default(),
-            buffers: &[ornek_yerlesimi],
+            buffers: &[Some(ornek_yerlesimi)],
         },
         primitive: wgpu::PrimitiveState::default(),
         depth_stencil: None,
