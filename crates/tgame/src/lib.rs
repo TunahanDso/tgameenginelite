@@ -133,8 +133,8 @@ pub mod onsoz {
     pub use tgame_pencere::OyunAkisi;
     pub use tgame_sahne::Sahne;
     pub use tgame_varlik::{
-        Donusum2B, Donusum3B, Dunya, DunyaBoyutu, Gorunum2B, Gorunum3B, Kamera2B, Kamera3B,
-        Varlik, VarlikKimligi,
+        Donusum2B, Donusum3B, Dunya, DunyaBoyutu, Gorunum2B, Gorunum3B, Kamera2B, Kamera3B, Varlik,
+        VarlikKimligi,
     };
     pub use tgame_zaman::Zaman;
 }

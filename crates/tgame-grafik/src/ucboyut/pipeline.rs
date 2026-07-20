@@ -1,8 +1,8 @@
 use tgame_cekirdek::Cozunurluk;
 
 use super::mesh::{
-    indeks_baytlari, tepe_baytlari, KUP_INDEKS_TAMPON_BOYUTU, KUP_TEPE_TAMPON_BOYUTU,
-    TEPE_ADIMI_GPU, TEPE_NITELIKLERI,
+    KUP_INDEKS_TAMPON_BOYUTU, KUP_TEPE_TAMPON_BOYUTU, TEPE_ADIMI_GPU, TEPE_NITELIKLERI,
+    indeks_baytlari, tepe_baytlari,
 };
 use super::{DERINLIK_BICIMI, ORNEK_ADIMI_GPU, ORNEK_NITELIKLERI};
 

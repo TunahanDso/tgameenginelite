@@ -134,10 +134,7 @@ pub struct Matris4 {
 impl Matris4 {
     /// Birim matris.
     pub const BIRIM: Self = Self::yeni([
-        1.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 1.0,
+        1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
     ]);
 
     /// Sütun öncelikli ham değerlerden matris oluşturur.
@@ -156,10 +153,8 @@ impl Matris4 {
     #[must_use]
     pub const fn oteleme(konum: Vektor3) -> Self {
         Self::yeni([
-            1.0, 0.0, 0.0, 0.0,
-            0.0, 1.0, 0.0, 0.0,
-            0.0, 0.0, 1.0, 0.0,
-            konum.x, konum.y, konum.z, 1.0,
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, konum.x, konum.y, konum.z,
+            1.0,
         ])
     }
 
@@ -167,10 +162,8 @@ impl Matris4 {
     #[must_use]
     pub const fn olcekleme(olcek: Vektor3) -> Self {
         Self::yeni([
-            olcek.x, 0.0, 0.0, 0.0,
-            0.0, olcek.y, 0.0, 0.0,
-            0.0, 0.0, olcek.z, 0.0,
-            0.0, 0.0, 0.0, 1.0,
+            olcek.x, 0.0, 0.0, 0.0, 0.0, olcek.y, 0.0, 0.0, 0.0, 0.0, olcek.z, 0.0, 0.0, 0.0, 0.0,
+            1.0,
         ])
     }
 
@@ -180,10 +173,8 @@ impl Matris4 {
         let kosinus = radyan.cos();
         let sinus = radyan.sin();
         Self::yeni([
-            1.0, 0.0, 0.0, 0.0,
-            0.0, kosinus, sinus, 0.0,
-            0.0, -sinus, kosinus, 0.0,
-            0.0, 0.0, 0.0, 1.0,
+            1.0, 0.0, 0.0, 0.0, 0.0, kosinus, sinus, 0.0, 0.0, -sinus, kosinus, 0.0, 0.0, 0.0, 0.0,
+            1.0,
         ])
     }
 
@@ -193,10 +184,8 @@ impl Matris4 {
         let kosinus = radyan.cos();
         let sinus = radyan.sin();
         Self::yeni([
-            kosinus, 0.0, -sinus, 0.0,
-            0.0, 1.0, 0.0, 0.0,
-            sinus, 0.0, kosinus, 0.0,
-            0.0, 0.0, 0.0, 1.0,
+            kosinus, 0.0, -sinus, 0.0, 0.0, 1.0, 0.0, 0.0, sinus, 0.0, kosinus, 0.0, 0.0, 0.0, 0.0,
+            1.0,
         ])
     }
 
@@ -206,10 +195,8 @@ impl Matris4 {
         let kosinus = radyan.cos();
         let sinus = radyan.sin();
         Self::yeni([
-            kosinus, sinus, 0.0, 0.0,
-            -sinus, kosinus, 0.0, 0.0,
-            0.0, 0.0, 1.0, 0.0,
-            0.0, 0.0, 0.0, 1.0,
+            kosinus, sinus, 0.0, 0.0, -sinus, kosinus, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+            1.0,
         ])
     }
 
@@ -328,12 +315,8 @@ mod testler {
 
     #[test]
     fn model_matrisi_otelemeyi_son_sutunda_tasir() {
-        let matris = Matris4::model(
-            Vektor3::yeni(2.0, 3.0, 4.0),
-            Vektor3::SIFIR,
-            Vektor3::BIR,
-        )
-        .degerler();
+        let matris =
+            Matris4::model(Vektor3::yeni(2.0, 3.0, 4.0), Vektor3::SIFIR, Vektor3::BIR).degerler();
         assert!(yakin(matris[12], 2.0));
         assert!(yakin(matris[13], 3.0));
         assert!(yakin(matris[14], 4.0));
