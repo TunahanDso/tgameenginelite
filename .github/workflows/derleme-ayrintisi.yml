@@ -1,0 +1,25 @@
+name: Derleme Ayrıntısı
+
+on:
+  push:
+    branches:
+      - agent/ilk-moduler-iskelet
+
+permissions:
+  contents: read
+
+jobs:
+  ayrinti:
+    name: Derleyici hatasını göster
+    runs-on: windows-latest
+
+    steps:
+      - name: Repoyu al ve derlemeyi denetle
+        shell: pwsh
+        run: |
+          git clone --branch agent/ilk-moduler-iskelet --depth 1 https://github.com/${{ github.repository }} kaynak
+          Set-Location kaynak
+          $cikti = cargo check --workspace --all-targets 2>&1
+          $kod = $LASTEXITCODE
+          $cikti | Select-Object -Last 160
+          exit $kod
