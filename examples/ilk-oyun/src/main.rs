@@ -81,6 +81,7 @@ fn sahneyi_olustur() -> (Dunya, VarlikKimligi) {
         (Vektor2::yeni(-3.6, -0.2), Renk::SARI, 0.45),
         (Vektor2::yeni(3.8, 0.3), Renk::MAVI, 0.55),
     ];
+    let mut donus_radyan = 0.0;
 
     for (sira, (konum, renk, olcek)) in dekorlar.into_iter().enumerate() {
         dunya.varlik_ekle(
@@ -88,9 +89,10 @@ fn sahneyi_olustur() -> (Dunya, VarlikKimligi) {
                 Donusum2B::yeni()
                     .konum(konum)
                     .olcek(Vektor2::yeni(olcek, olcek))
-                    .donus(sira as f32 * 0.35),
+                    .donus(donus_radyan),
             ),
         );
+        donus_radyan += 0.35;
     }
 
     (dunya, oyuncu)
