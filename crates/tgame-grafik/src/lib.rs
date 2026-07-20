@@ -133,15 +133,14 @@ impl Grafik {
         })];
 
         {
-            let mut cizim_gecisi =
-                komut_kaydedici.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("Tgame Ana Çizim Geçişi"),
-                    color_attachments: &renk_eklentileri,
-                    depth_stencil_attachment: None,
-                    timestamp_writes: None,
-                    occlusion_query_set: None,
-                    multiview_mask: None,
-                });
+            let mut cizim_gecisi = komut_kaydedici.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Tgame Ana Çizim Geçişi"),
+                color_attachments: &renk_eklentileri,
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
             cizim_gecisi.set_pipeline(&self.cizim_hatti);
             cizim_gecisi.draw(0..3, 0..1);
         }
