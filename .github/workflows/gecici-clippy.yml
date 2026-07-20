@@ -11,17 +11,12 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Kaynak kodu al
-        uses: actions/checkout@v4
-
-      - name: Rust ve Clippy kur
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-
       - name: Yalnızca Clippy hatalarını göster
         shell: pwsh
         run: |
+          git clone --branch agent/ilk-moduler-iskelet --depth 1 https://github.com/${{ github.repository }} kaynak 2>$null
+          Set-Location kaynak
+          rustup component add clippy 2>$null
           $json = cargo clippy --workspace --all-targets --all-features --message-format=json -- -D warnings 2>$null
           $kod = $LASTEXITCODE
           $json | ForEach-Object {
