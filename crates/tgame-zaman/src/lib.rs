@@ -131,10 +131,16 @@ mod testler {
     #[test]
     fn kare_suresi_tekduze_saatten_hesaplanir() {
         let baslangic = Instant::now();
+        let ilk_an = baslangic
+            .checked_add(Duration::from_millis(16))
+            .expect("İlk test anı temsil edilebilir olmalı.");
+        let ikinci_an = baslangic
+            .checked_add(Duration::from_millis(36))
+            .expect("İkinci test anı temsil edilebilir olmalı.");
         let mut yonetici = ZamanYoneticisi::baslangicla(baslangic);
 
-        let ilk = yonetici.kareyi_baslat_aninda(baslangic + Duration::from_millis(16));
-        let ikinci = yonetici.kareyi_baslat_aninda(baslangic + Duration::from_millis(36));
+        let ilk = yonetici.kareyi_baslat_aninda(ilk_an);
+        let ikinci = yonetici.kareyi_baslat_aninda(ikinci_an);
 
         assert_eq!(ilk.kare_suresi(), Duration::from_millis(16));
         assert_eq!(ilk.toplam_sure(), Duration::from_millis(16));
@@ -146,10 +152,13 @@ mod testler {
 
     #[test]
     fn saat_geri_giderse_sure_sifira_sinirlanir() {
-        let baslangic = Instant::now();
+        let erken_an = Instant::now();
+        let baslangic = erken_an
+            .checked_add(Duration::from_millis(1))
+            .expect("Test başlangıç anı temsil edilebilir olmalı.");
         let mut yonetici = ZamanYoneticisi::baslangicla(baslangic);
 
-        let zaman = yonetici.kareyi_baslat_aninda(baslangic - Duration::from_millis(1));
+        let zaman = yonetici.kareyi_baslat_aninda(erken_an);
 
         assert_eq!(zaman.kare_suresi(), Duration::ZERO);
         assert_eq!(zaman.toplam_sure(), Duration::ZERO);
