@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 tgame-cekirdek = { path = "../tgame-cekirdek" }
+tgame-varlik = { path = "../tgame-varlik" }
 wgpu = "30.0.0"
 winit = "0.30.13"
 
