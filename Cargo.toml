@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/tgame",
     "crates/tgame-cekirdek",
+    "crates/tgame-grafik",
     "crates/tgame-pencere",
     "crates/tgame-sahne",
     "crates/tgame-mod",
@@ -12,7 +13,7 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.87"
 authors = ["TunahanDso"]
 repository = "https://github.com/TunahanDso/tgameenginelite"
 
