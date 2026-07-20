@@ -1,6 +1,10 @@
 //! Tgame Engine Lite Türkçe matematik katmanı.
 
+mod ucboyut;
+
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Sub, SubAssign};
+
+pub use ucboyut::{Matris4, Vektor3};
 
 /// İki boyutlu konum, yön ve ölçek değerlerini taşır.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
