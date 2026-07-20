@@ -48,9 +48,8 @@ impl PencereAyarlari {
 pub fn calistir(ayarlar: PencereAyarlari) -> OyunSonucu {
     ayarlar.cozunurluk.dogrula()?;
 
-    let olay_dongusu = EventLoop::new().map_err(|hata| {
-        OyunHatasi::yeni(format!("Pencere olay döngüsü oluşturulamadı: {hata}"))
-    })?;
+    let olay_dongusu = EventLoop::new()
+        .map_err(|hata| OyunHatasi::yeni(format!("Pencere olay döngüsü oluşturulamadı: {hata}")))?;
     let mut uygulama = Uygulama::yeni(ayarlar);
 
     olay_dongusu
