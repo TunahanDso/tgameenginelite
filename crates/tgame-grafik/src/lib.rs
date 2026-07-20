@@ -146,7 +146,7 @@ impl Grafik {
         }
 
         self.kuyruk.submit(Some(komut_kaydedici.finish()));
-        kare.present();
+        self.kuyruk.present(kare);
 
         if yeniden_yapilandir {
             self.yuzeyi_yapilandir();
