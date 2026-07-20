@@ -1,16 +1,22 @@
 //! Tgame Engine Lite kullanıcı API'si.
 
+use std::fmt;
+
 use tgame_cekirdek::{Cozunurluk, OyunAyarlari, OyunSonucu};
+use tgame_girdi::Girdi;
 use tgame_mod::ModYoneticisi;
-use tgame_pencere::{PencereAyarlari, calistir as pencereyi_calistir};
+use tgame_pencere::{
+    KareGorevi, OyunAkisi, PencereAyarlari, calistir as pencereyi_calistir,
+};
 use tgame_sahne::Sahne;
+use tgame_zaman::Zaman;
 
 /// Oyun geliştiricisinin doğrudan kullandığı ana motor yapısı.
-#[derive(Debug)]
 pub struct Oyun {
     ayarlar: OyunAyarlari,
     sahneler: Vec<Sahne>,
     mod_yoneticisi: ModYoneticisi,
+    kare_gorevi: Option<KareGorevi>,
 }
 
 impl Oyun {
@@ -21,6 +27,7 @@ impl Oyun {
             ayarlar: OyunAyarlari::yeni(baslik),
             sahneler: Vec::new(),
             mod_yoneticisi: ModYoneticisi::yeni(),
+            kare_gorevi: None,
         }
     }
 
@@ -45,20 +52,34 @@ impl Oyun {
         self
     }
 
+    /// Her karede çalışacak oyun görevini belirler.
+    ///
+    /// Görev güncel klavye durumunu ve kare zamanını alır. Döndürdüğü
+    /// [`OyunAkisi`] oyunun devam edip etmeyeceğini belirler.
+    #[must_use]
+    pub fn her_kare<F>(mut self, gorev: F) -> Self
+    where
+        F: FnMut(&Girdi, &Zaman) -> OyunAkisi + 'static,
+    {
+        self.kare_gorevi = Some(Box::new(gorev));
+        self
+    }
+
     /// Motoru doğrular, oyun penceresini oluşturur ve olay döngüsünü başlatır.
     ///
     /// # Errors
     ///
-    /// Oyun ayarları geçersizse, olay döngüsü oluşturulamazsa veya işletim
-    /// sistemi pencere oluşturmayı reddederse [`tgame_cekirdek::OyunHatasi`]
-    /// döndürür.
+    /// Oyun ayarları geçersizse, olay döngüsü, pencere veya GPU grafik sistemi
+    /// oluşturulamazsa [`tgame_cekirdek::OyunHatasi`] döndürür.
     pub fn calistir(self) -> OyunSonucu {
         let Self {
             ayarlar,
             sahneler,
             mod_yoneticisi,
+            kare_gorevi,
         } = self;
         let cozunurluk = ayarlar.cozunurluk.dogrula()?;
+        let kare_gorevi = kare_gorevi.unwrap_or_else(|| Box::new(|_, _| OyunAkisi::DevamEt));
 
         println!(
             "{} başlatılıyor — {}×{} — {} sahne — {} yüklü mod — mod klasörü: {}",
@@ -70,7 +91,22 @@ impl Oyun {
             ayarlar.mod_klasoru,
         );
 
-        pencereyi_calistir(PencereAyarlari::yeni(ayarlar.baslik, cozunurluk))
+        pencereyi_calistir(
+            PencereAyarlari::yeni(ayarlar.baslik, cozunurluk),
+            kare_gorevi,
+        )
+    }
+}
+
+impl fmt::Debug for Oyun {
+    fn fmt(&self, bicimlendirici: &mut fmt::Formatter<'_>) -> fmt::Result {
+        bicimlendirici
+            .debug_struct("Oyun")
+            .field("ayarlar", &self.ayarlar)
+            .field("sahneler", &self.sahneler)
+            .field("mod_yoneticisi", &self.mod_yoneticisi)
+            .field("kare_gorevi_tanimli", &self.kare_gorevi.is_some())
+            .finish()
     }
 }
 
@@ -78,14 +114,18 @@ impl Oyun {
 pub mod onsoz {
     pub use crate::Oyun;
     pub use tgame_cekirdek::{Cozunurluk, OyunHatasi, OyunSonucu};
+    pub use tgame_girdi::{Girdi, Tus};
     pub use tgame_mod::{ModBilgisi, ModYoneticisi};
+    pub use tgame_pencere::OyunAkisi;
     pub use tgame_sahne::Sahne;
+    pub use tgame_zaman::Zaman;
 }
 
 #[cfg(test)]
 mod testler {
     use super::Oyun;
     use tgame_cekirdek::Cozunurluk;
+    use tgame_pencere::OyunAkisi;
     use tgame_sahne::Sahne;
 
     #[test]
@@ -97,6 +137,7 @@ mod testler {
         assert_eq!(oyun.ayarlar.mod_klasoru, "modlar");
         assert!(oyun.sahneler.is_empty());
         assert!(oyun.mod_yoneticisi.yuklu_modlar().is_empty());
+        assert!(oyun.kare_gorevi.is_none());
     }
 
     #[test]
@@ -104,10 +145,12 @@ mod testler {
         let oyun = Oyun::yeni("Deneme")
             .cozunurluk(1024, 768)
             .mod_klasoru("eklentiler")
-            .sahne_ekle(Sahne::yeni("Baslangic"));
+            .sahne_ekle(Sahne::yeni("Baslangic"))
+            .her_kare(|_, _| OyunAkisi::DevamEt);
 
         assert_eq!(oyun.ayarlar.cozunurluk, Cozunurluk::yeni(1024, 768));
         assert_eq!(oyun.ayarlar.mod_klasoru, "eklentiler");
         assert_eq!(oyun.sahneler.len(), 1);
+        assert!(oyun.kare_gorevi.is_some());
     }
 }
