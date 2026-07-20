@@ -1,4 +1,4 @@
-use tgame::onsoz::*;
+use tgame::onsoz::{Oyun, OyunSonucu, Sahne};
 
 fn main() -> OyunSonucu {
     Oyun::yeni("İlk Tgame Oyunum")
