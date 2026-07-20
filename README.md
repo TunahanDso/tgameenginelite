@@ -13,5 +13,41 @@ Motorun kendi editör uygulaması yoktur. Oyun geliştiricileri motoru bir Rust 
 - Öncelik: Performans, kalite ve anlaşılabilirlik
 - Oyunlar: Baştan itibaren modlanabilir tasarlanacak
 - Motor türü: Editörsüz, kütüphane tabanlı
+- Kalite kuralı: Uyarılar derleme hatası kabul edilir
 
-> Vira bismillah. İlk çalışan iskelet geliştirme dalında hazırlanıyor.
+## Paketler
+
+- `tgame`: Oyun geliştiricisinin kullandığı sade Türkçe üst API
+- `tgame-cekirdek`: Ortak ayarlar, çözünürlük, hata ve sonuç türleri
+- `tgame-pencere`: İşletim sistemi penceresi ve olay döngüsü
+- `tgame-sahne`: Sahne tanımları
+- `tgame-mod`: Modlama sözleşmeleri ve mod kayıt sistemi
+
+## İlk oyun
+
+```rust
+use tgame::onsoz::{Oyun, OyunSonucu, Sahne};
+
+fn main() -> OyunSonucu {
+    Oyun::yeni("İlk Tgame Oyunum")
+        .cozunurluk(800, 600)
+        .mod_klasoru("modlar")
+        .sahne_ekle(Sahne::yeni("Başlangıç"))
+        .calistir()
+}
+```
+
+Bu örnek gerçek bir 800×600 işletim sistemi penceresi oluşturur ve pencere kapatılana kadar olay döngüsünü çalıştırır.
+
+## Kalite denetimi
+
+```powershell
+cargo fmt --all --check
+cargo check --workspace --all-targets
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-targets --all-features
+```
+
+Aynı denetimler her gönderimde GitHub Actions tarafından Windows üzerinde otomatik olarak çalıştırılır.
+
+> Vira bismillah. Her güncelleme, Tgame Engine Lite ile daha ayrıntılı oyunlar yapılabilmesini sağlayacak.
