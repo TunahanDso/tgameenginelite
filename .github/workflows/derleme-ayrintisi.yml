@@ -15,20 +15,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Kaynak kodu al
-        uses: actions/checkout@v4
-        with:
-          ref: agent/ilk-moduler-iskelet
-
-      - name: Rust araç zincirini kur
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cargo önbelleğini hazırla
-        uses: Swatinem/rust-cache@v2
-
-      - name: Derleyici hatalarını göster
+      - name: Yalnızca derleyici hatalarını göster
         shell: pwsh
         run: |
+          git clone --branch agent/ilk-moduler-iskelet --depth 1 https://github.com/${{ github.repository }} kaynak 2>$null
+          Set-Location kaynak
           $json = cargo check --workspace --all-targets --message-format=json 2>$null
           $kod = $LASTEXITCODE
           $json | ForEach-Object {
