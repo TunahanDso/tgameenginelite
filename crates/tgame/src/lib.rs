@@ -2,7 +2,7 @@
 
 use tgame_cekirdek::{Cozunurluk, OyunAyarlari, OyunSonucu};
 use tgame_mod::ModYoneticisi;
-use tgame_pencere::{PencereAyarlari, calistir as pencereyi_calistir};
+use tgame_pencere::{calistir as pencereyi_calistir, PencereAyarlari};
 use tgame_sahne::Sahne;
 
 /// Oyun geliştiricisinin doğrudan kullandığı ana motor yapısı.
