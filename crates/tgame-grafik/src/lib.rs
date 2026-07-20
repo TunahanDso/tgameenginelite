@@ -87,8 +87,7 @@ impl Grafik {
                 resource: kamera_tamponu.as_entire_binding(),
             }],
         });
-        let ornek_tamponu =
-            ornek_tamponu_olustur(&aygit, BASLANGIC_ORNEK_TAMPON_BOYUTU);
+        let ornek_tamponu = ornek_tamponu_olustur(&aygit, BASLANGIC_ORNEK_TAMPON_BOYUTU);
         let cizim_hatti = cizim_hatti_olustur(&aygit, yapilandirma.format, &kamera_yerlesimi);
 
         yuzey.configure(&aygit, &yapilandirma);
