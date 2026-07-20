@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/tgame",
+    "crates/tgame-cekirdek",
+    "crates/tgame-sahne",
+    "crates/tgame-mod",
+    "examples/ilk-oyun",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+authors = ["TunahanDso"]
+repository = "https://github.com/TunahanDso/tgameenginelite"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
