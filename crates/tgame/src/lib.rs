@@ -47,6 +47,11 @@ impl Oyun {
     /// Motoru doğrular ve oyun döngüsünü başlatır.
     ///
     /// İlk iskelette gerçek pencere ve grafik döngüsü henüz eklenmemiştir.
+    ///
+    /// # Errors
+    ///
+    /// Oyun ayarları geçersizse, örneğin çözünürlük boyutlarından biri sıfırsa,
+    /// [`tgame_cekirdek::OyunHatasi`] döndürür.
     pub fn calistir(self) -> OyunSonucu {
         let cozunurluk = self.ayarlar.cozunurluk.dogrula()?;
 
