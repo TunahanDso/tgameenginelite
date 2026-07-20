@@ -1,0 +1,14 @@
+[package]
+name = "tgame-pencere"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+tgame-cekirdek = { path = "../tgame-cekirdek" }
+winit = "0.30.13"
+
+[lints]
+workspace = true
