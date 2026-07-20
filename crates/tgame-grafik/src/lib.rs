@@ -8,8 +8,11 @@ use winit::window::Window;
 
 const UCGEN_GOLGELENDIRICISI: &str = include_str!("ucgen.wgsl");
 const KAMERA_TAMPON_BOYUTU: u64 = 16;
+const KAMERA_BAYT_KAPASITESI: usize = 16;
 const ORNEK_ADIMI: usize = 36;
-const BASLANGIC_ORNEK_KAPASITESI: u64 = 36 * 64;
+const ORNEK_ADIMI_GPU: u64 = 36;
+const BASLANGIC_ORNEK_BAYT_KAPASITESI: usize = ORNEK_ADIMI * 64;
+const BASLANGIC_ORNEK_TAMPON_BOYUTU: u64 = ORNEK_ADIMI_GPU * 64;
 const ORNEK_NITELIKLERI: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![
     0 => Float32x2,
     1 => Float32x2,
@@ -84,7 +87,8 @@ impl Grafik {
                 resource: kamera_tamponu.as_entire_binding(),
             }],
         });
-        let ornek_tamponu = ornek_tamponu_olustur(&aygit, BASLANGIC_ORNEK_KAPASITESI);
+        let ornek_tamponu =
+            ornek_tamponu_olustur(&aygit, BASLANGIC_ORNEK_TAMPON_BOYUTU);
         let cizim_hatti = cizim_hatti_olustur(&aygit, yapilandirma.format, &kamera_yerlesimi);
 
         yuzey.configure(&aygit, &yapilandirma);
@@ -101,8 +105,8 @@ impl Grafik {
             kamera_tamponu,
             kamera_grubu,
             ornek_tamponu,
-            ornek_tampon_kapasitesi: BASLANGIC_ORNEK_KAPASITESI,
-            ornek_baytlari: Vec::with_capacity(BASLANGIC_ORNEK_KAPASITESI as usize),
+            ornek_tampon_kapasitesi: BASLANGIC_ORNEK_TAMPON_BOYUTU,
+            ornek_baytlari: Vec::with_capacity(BASLANGIC_ORNEK_BAYT_KAPASITESI),
             cizim_hatti,
             boyut,
         })
@@ -238,8 +242,9 @@ impl Grafik {
 
     fn kamerayi_yaz(&self, dunya: &Dunya) {
         let kamera = dunya.kamera();
-        let en_boy_orani = self.yapilandirma.width as f32 / self.yapilandirma.height as f32;
-        let mut baytlar = Vec::with_capacity(KAMERA_TAMPON_BOYUTU as usize);
+        let en_boy_orani = piksel_f32(self.yapilandirma.width)
+            / piksel_f32(self.yapilandirma.height);
+        let mut baytlar = Vec::with_capacity(KAMERA_BAYT_KAPASITESI);
         f32_yaz(&mut baytlar, kamera.konum.x);
         f32_yaz(&mut baytlar, kamera.konum.y);
         f32_yaz(&mut baytlar, kamera.gorus_yuksekligi * 0.5);
@@ -298,7 +303,7 @@ fn kamera_yerlesimi_olustur(aygit: &wgpu::Device) -> wgpu::BindGroupLayout {
 fn ornek_tamponu_olustur(aygit: &wgpu::Device, boyut: u64) -> wgpu::Buffer {
     aygit.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Tgame Üçgen Örnek Tamponu"),
-        size: boyut.max(ORNEK_ADIMI as u64),
+        size: boyut.max(ORNEK_ADIMI_GPU),
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     })
@@ -324,7 +329,7 @@ fn cizim_hatti_olustur(
         write_mask: wgpu::ColorWrites::ALL,
     })];
     let ornek_yerlesimi = wgpu::VertexBufferLayout {
-        array_stride: ORNEK_ADIMI as wgpu::BufferAddress,
+        array_stride: ORNEK_ADIMI_GPU,
         step_mode: wgpu::VertexStepMode::Instance,
         attributes: &ORNEK_NITELIKLERI,
     };
@@ -352,13 +357,17 @@ fn cizim_hatti_olustur(
     })
 }
 
+fn piksel_f32(deger: u32) -> f32 {
+    f32::from(u16::try_from(deger).unwrap_or(u16::MAX))
+}
+
 fn f32_yaz(hedef: &mut Vec<u8>, deger: f32) {
     hedef.extend_from_slice(&deger.to_le_bytes());
 }
 
 #[cfg(test)]
 mod testler {
-    use super::{ORNEK_ADIMI, UCGEN_GOLGELENDIRICISI, f32_yaz};
+    use super::{ORNEK_ADIMI, UCGEN_GOLGELENDIRICISI, f32_yaz, piksel_f32};
 
     #[test]
     fn varlik_golgelendiricisi_kamera_ve_ornek_girdilerini_icerir() {
@@ -370,10 +379,15 @@ mod testler {
     #[test]
     fn bir_ornek_dokuz_f32_degerinden_olusur() {
         let mut baytlar = Vec::new();
-        for deger in 0..9 {
-            f32_yaz(&mut baytlar, deger as f32);
+        for deger in 0_u8..9 {
+            f32_yaz(&mut baytlar, f32::from(deger));
         }
 
         assert_eq!(baytlar.len(), ORNEK_ADIMI);
+    }
+
+    #[test]
+    fn cok_buyuk_piksel_degeri_guvenli_sinirlanir() {
+        assert_eq!(piksel_f32(u32::MAX), f32::from(u16::MAX));
     }
 }
