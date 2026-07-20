@@ -1,0 +1,15 @@
+[package]
+name = "tgame-grafik"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+tgame-cekirdek = { path = "../tgame-cekirdek" }
+wgpu = "30.0.0"
+winit = "0.30.13"
+
+[lints]
+workspace = true
