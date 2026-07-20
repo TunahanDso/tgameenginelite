@@ -1,0 +1,36 @@
+name: Geçici Clippy Ayrıntısı
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ayrinti:
+    runs-on: windows-latest
+
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@v4
+
+      - name: Rust ve Clippy kur
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Yalnızca Clippy hatalarını göster
+        shell: pwsh
+        run: |
+          $json = cargo clippy --workspace --all-targets --all-features --message-format=json -- -D warnings 2>$null
+          $kod = $LASTEXITCODE
+          $json | ForEach-Object {
+            try {
+              $mesaj = $_ | ConvertFrom-Json
+              if ($mesaj.reason -eq "compiler-message" -and $mesaj.message.level -eq "error") {
+                Write-Host $mesaj.message.rendered
+              }
+            } catch {
+            }
+          }
+          exit $kod
