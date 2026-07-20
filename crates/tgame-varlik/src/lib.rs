@@ -1,6 +1,6 @@
 //! Tgame Engine Lite varlık, dönüşüm ve kamera katmanı.
 
-use tgame_matematik::{Renk, Vektor2};
+use tgame_matematik::{Matris4, Renk, Vektor2, Vektor3};
 
 /// Oyun dünyasındaki bir varlığı benzersiz biçimde tanımlar.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -12,6 +12,16 @@ impl VarlikKimligi {
     pub const fn deger(self) -> usize {
         self.0
     }
+}
+
+/// Dünyanın hangi grafik uzayında çizileceğini belirtir.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DunyaBoyutu {
+    /// Ortografik iki boyutlu dünya.
+    #[default]
+    IkiBoyut,
+    /// Perspektif ve derinlik tamponlu üç boyutlu dünya.
+    UcBoyut,
 }
 
 /// İki boyutlu konum, dönüş ve ölçek bilgisini taşır.
@@ -74,7 +84,73 @@ impl Default for Donusum2B {
     }
 }
 
-/// Bir varlığın çizilebilir görünümünü belirtir.
+/// Üç boyutlu konum, Euler dönüşü ve ölçek bilgisini taşır.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Donusum3B {
+    /// Dünya konumu.
+    pub konum: Vektor3,
+    /// X, Y ve Z eksenlerindeki radyan dönüşler.
+    pub donus_radyan: Vektor3,
+    /// Yerel ölçek.
+    pub olcek: Vektor3,
+}
+
+impl Donusum3B {
+    /// Birim üç boyutlu dönüşüm oluşturur.
+    #[must_use]
+    pub const fn yeni() -> Self {
+        Self {
+            konum: Vektor3::SIFIR,
+            donus_radyan: Vektor3::SIFIR,
+            olcek: Vektor3::BIR,
+        }
+    }
+
+    /// Konumu değiştirir.
+    #[must_use]
+    pub const fn konum(mut self, konum: Vektor3) -> Self {
+        self.konum = konum;
+        self
+    }
+
+    /// Ölçeği değiştirir.
+    #[must_use]
+    pub const fn olcek(mut self, olcek: Vektor3) -> Self {
+        self.olcek = olcek;
+        self
+    }
+
+    /// Euler dönüşünü radyan cinsinden değiştirir.
+    #[must_use]
+    pub const fn donus(mut self, donus_radyan: Vektor3) -> Self {
+        self.donus_radyan = donus_radyan;
+        self
+    }
+
+    /// Dönüşümü dünya yönünde taşır.
+    pub fn tasi(&mut self, hareket: Vektor3) {
+        self.konum += hareket;
+    }
+
+    /// Euler dönüşünü radyan cinsinden artırır.
+    pub fn dondur(&mut self, donus_radyan: Vektor3) {
+        self.donus_radyan += donus_radyan;
+    }
+
+    /// GPU çizimi için model matrisini oluşturur.
+    #[must_use]
+    pub fn model_matrisi(self) -> Matris4 {
+        Matris4::model(self.konum, self.donus_radyan, self.olcek)
+    }
+}
+
+impl Default for Donusum3B {
+    fn default() -> Self {
+        Self::yeni()
+    }
+}
+
+/// Bir varlığın iki boyutlu çizilebilir görünümünü belirtir.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Gorunum2B {
     /// Tek renkli üçgen görünümü.
@@ -84,13 +160,25 @@ pub enum Gorunum2B {
     },
 }
 
+/// Bir varlığın üç boyutlu çizilebilir görünümünü belirtir.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Gorunum3B {
+    /// Yüzey normalleriyle aydınlatılan tek renkli küp görünümü.
+    Kup {
+        /// Küpün temel rengi.
+        renk: Renk,
+    },
+}
+
 /// Oyun dünyasındaki kimlikli nesnedir.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Varlik {
     kimlik: Option<VarlikKimligi>,
     ad: String,
-    donusum: Donusum2B,
-    gorunum: Option<Gorunum2B>,
+    donusum2b: Donusum2B,
+    donusum3b: Donusum3B,
+    gorunum2b: Option<Gorunum2B>,
+    gorunum3b: Option<Gorunum3B>,
     etkin: bool,
 }
 
@@ -101,8 +189,10 @@ impl Varlik {
         Self {
             kimlik: None,
             ad: ad.into(),
-            donusum: Donusum2B::yeni(),
-            gorunum: None,
+            donusum2b: Donusum2B::yeni(),
+            donusum3b: Donusum3B::yeni(),
+            gorunum2b: None,
+            gorunum3b: None,
             etkin: true,
         }
     }
@@ -113,17 +203,37 @@ impl Varlik {
         Self::yeni(ad).gorunum(Gorunum2B::Ucgen { renk })
     }
 
-    /// Başlangıç dönüşümünü değiştirir.
+    /// Aydınlatılabilir tek renkli küp varlık taslağı oluşturur.
+    #[must_use]
+    pub fn kup(ad: impl Into<String>, renk: Renk) -> Self {
+        Self::yeni(ad).gorunum3b(Gorunum3B::Kup { renk })
+    }
+
+    /// Başlangıç iki boyutlu dönüşümünü değiştirir.
     #[must_use]
     pub const fn donusum(mut self, donusum: Donusum2B) -> Self {
-        self.donusum = donusum;
+        self.donusum2b = donusum;
         self
     }
 
-    /// Çizilebilir görünümü değiştirir.
+    /// Başlangıç üç boyutlu dönüşümünü değiştirir.
+    #[must_use]
+    pub const fn donusum3b(mut self, donusum: Donusum3B) -> Self {
+        self.donusum3b = donusum;
+        self
+    }
+
+    /// İki boyutlu çizilebilir görünümü değiştirir.
     #[must_use]
     pub const fn gorunum(mut self, gorunum: Gorunum2B) -> Self {
-        self.gorunum = Some(gorunum);
+        self.gorunum2b = Some(gorunum);
+        self
+    }
+
+    /// Üç boyutlu çizilebilir görünümü değiştirir.
+    #[must_use]
+    pub const fn gorunum3b(mut self, gorunum: Gorunum3B) -> Self {
+        self.gorunum3b = Some(gorunum);
         self
     }
 
@@ -139,22 +249,40 @@ impl Varlik {
         self.kimlik
     }
 
-    /// Dönüşümü döndürür.
+    /// İki boyutlu dönüşümü döndürür.
     #[must_use]
     pub const fn donusumu(&self) -> &Donusum2B {
-        &self.donusum
+        &self.donusum2b
     }
 
-    /// Dönüşümü değiştirilebilir olarak döndürür.
+    /// İki boyutlu dönüşümü değiştirilebilir olarak döndürür.
     #[must_use]
     pub const fn donusumu_mut(&mut self) -> &mut Donusum2B {
-        &mut self.donusum
+        &mut self.donusum2b
     }
 
-    /// Görünümü döndürür.
+    /// Üç boyutlu dönüşümü döndürür.
+    #[must_use]
+    pub const fn donusumu3b(&self) -> &Donusum3B {
+        &self.donusum3b
+    }
+
+    /// Üç boyutlu dönüşümü değiştirilebilir olarak döndürür.
+    #[must_use]
+    pub const fn donusumu3b_mut(&mut self) -> &mut Donusum3B {
+        &mut self.donusum3b
+    }
+
+    /// İki boyutlu görünümü döndürür.
     #[must_use]
     pub const fn gorunumu(&self) -> Option<Gorunum2B> {
-        self.gorunum
+        self.gorunum2b
+    }
+
+    /// Üç boyutlu görünümü döndürür.
+    #[must_use]
+    pub const fn gorunumu3b(&self) -> Option<Gorunum3B> {
+        self.gorunum3b
     }
 
     /// Varlığın etkin olup olmadığını döndürür.
@@ -211,18 +339,124 @@ impl Default for Kamera2B {
     }
 }
 
-/// Varlıkları ve etkin kamerayı saklayan oyun dünyasıdır.
+/// Perspektif üç boyutlu dünya kamerasını tanımlar.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Kamera3B {
+    /// Kameranın dünya konumu.
+    pub konum: Vektor3,
+    /// Kameranın baktığı dünya noktası.
+    pub hedef: Vektor3,
+    /// Kameranın yukarı yönü.
+    pub yukari: Vektor3,
+    /// Dikey görüş açısı, radyan cinsinden.
+    pub dikey_gorus_radyan: f32,
+    /// Yakın kırpma düzlemi.
+    pub yakin: f32,
+    /// Uzak kırpma düzlemi.
+    pub uzak: f32,
+}
+
+impl Kamera3B {
+    /// Dengeli varsayılan değerlerle perspektif kamera oluşturur.
+    #[must_use]
+    pub const fn yeni() -> Self {
+        Self {
+            konum: Vektor3::yeni(0.0, 2.5, 7.0),
+            hedef: Vektor3::SIFIR,
+            yukari: Vektor3::YUKARI,
+            dikey_gorus_radyan: std::f32::consts::FRAC_PI_3,
+            yakin: 0.1,
+            uzak: 200.0,
+        }
+    }
+
+    /// Kamera konumunu değiştirir.
+    #[must_use]
+    pub const fn konum(mut self, konum: Vektor3) -> Self {
+        self.konum = konum;
+        self
+    }
+
+    /// Kameranın baktığı hedefi değiştirir.
+    #[must_use]
+    pub const fn hedef(mut self, hedef: Vektor3) -> Self {
+        self.hedef = hedef;
+        self
+    }
+
+    /// Dikey görüş açısını geçerliyse değiştirir.
+    #[must_use]
+    pub fn dikey_gorus_radyan(mut self, radyan: f32) -> Self {
+        if radyan.is_finite() && radyan > 0.01 && radyan < std::f32::consts::PI - 0.01 {
+            self.dikey_gorus_radyan = radyan;
+        }
+        self
+    }
+
+    /// Yakın ve uzak kırpma düzlemlerini geçerliyse değiştirir.
+    #[must_use]
+    pub fn kirpma(mut self, yakin: f32, uzak: f32) -> Self {
+        if yakin.is_finite() && uzak.is_finite() && yakin > 0.0 && uzak > yakin {
+            self.yakin = yakin;
+            self.uzak = uzak;
+        }
+        self
+    }
+
+    /// Kamera görünüm ve perspektif matrislerinin birleşimini döndürür.
+    #[must_use]
+    pub fn gorunum_izdusum(self, en_boy_orani: f32) -> Matris4 {
+        let guvenli_oran = if en_boy_orani.is_finite() && en_boy_orani > f32::EPSILON {
+            en_boy_orani
+        } else {
+            1.0
+        };
+        let gorunum = Matris4::bakis_sag_el(self.konum, self.hedef, self.yukari);
+        let izdusum = Matris4::perspektif_sag_el(
+            self.dikey_gorus_radyan,
+            guvenli_oran,
+            self.yakin,
+            self.uzak,
+        );
+        izdusum * gorunum
+    }
+}
+
+impl Default for Kamera3B {
+    fn default() -> Self {
+        Self::yeni()
+    }
+}
+
+/// Varlıkları, dünya boyutunu ve etkin kameraları saklayan oyun dünyasıdır.
 #[derive(Debug, Clone, Default)]
 pub struct Dunya {
     varliklar: Vec<Varlik>,
-    kamera: Kamera2B,
+    boyut: DunyaBoyutu,
+    kamera2b: Kamera2B,
+    kamera3b: Kamera3B,
 }
 
 impl Dunya {
-    /// Boş bir oyun dünyası oluşturur.
+    /// Boş bir iki boyutlu oyun dünyası oluşturur.
     #[must_use]
     pub fn yeni() -> Self {
         Self::default()
+    }
+
+    /// Boş bir perspektif üç boyutlu oyun dünyası oluşturur.
+    #[must_use]
+    pub fn yeni_3b() -> Self {
+        Self {
+            boyut: DunyaBoyutu::UcBoyut,
+            ..Self::default()
+        }
+    }
+
+    /// Dünyanın etkin grafik boyutunu döndürür.
+    #[must_use]
+    pub const fn boyut(&self) -> DunyaBoyutu {
+        self.boyut
     }
 
     /// Dünyaya varlık ekler ve sabit kimliğini döndürür.
@@ -251,29 +485,46 @@ impl Dunya {
         &self.varliklar
     }
 
-    /// Etkin kamerayı döndürür.
+    /// Etkin iki boyutlu kamerayı döndürür.
     #[must_use]
     pub const fn kamera(&self) -> &Kamera2B {
-        &self.kamera
+        &self.kamera2b
     }
 
-    /// Etkin kamerayı değiştirilebilir olarak döndürür.
+    /// Etkin iki boyutlu kamerayı değiştirilebilir olarak döndürür.
     #[must_use]
     pub const fn kamera_mut(&mut self) -> &mut Kamera2B {
-        &mut self.kamera
+        &mut self.kamera2b
     }
 
-    /// Etkin kamerayı değiştirir.
+    /// Etkin iki boyutlu kamerayı değiştirir.
     pub const fn kamerayi_ayarla(&mut self, kamera: Kamera2B) {
-        self.kamera = kamera;
+        self.kamera2b = kamera;
+    }
+
+    /// Etkin üç boyutlu kamerayı döndürür.
+    #[must_use]
+    pub const fn kamera3b(&self) -> &Kamera3B {
+        &self.kamera3b
+    }
+
+    /// Etkin üç boyutlu kamerayı değiştirilebilir olarak döndürür.
+    #[must_use]
+    pub const fn kamera3b_mut(&mut self) -> &mut Kamera3B {
+        &mut self.kamera3b
+    }
+
+    /// Etkin üç boyutlu kamerayı değiştirir.
+    pub const fn kamera3b_ayarla(&mut self, kamera: Kamera3B) {
+        self.kamera3b = kamera;
     }
 }
 
 #[cfg(test)]
 mod testler {
-    use tgame_matematik::{Renk, Vektor2};
+    use tgame_matematik::{Renk, Vektor2, Vektor3};
 
-    use super::{Donusum2B, Dunya, Varlik};
+    use super::{Donusum2B, Donusum3B, Dunya, DunyaBoyutu, Varlik};
 
     fn yakin(sol: f32, sag: f32) -> bool {
         (sol - sag).abs() < 0.000_01
@@ -310,5 +561,30 @@ mod testler {
             .konum;
         assert!(yakin(konum.x, 4.0));
         assert!(yakin(konum.y, 2.0));
+    }
+
+    #[test]
+    fn uc_boyutlu_dunya_kup_donusumunu_gunceller() {
+        let mut dunya = Dunya::yeni_3b();
+        let kimlik = dunya.varlik_ekle(
+            Varlik::kup("Küp", Renk::SARI)
+                .donusum3b(Donusum3B::yeni().konum(Vektor3::yeni(0.0, 1.0, -2.0))),
+        );
+
+        dunya
+            .varlik_mut(kimlik)
+            .expect("Küp bulunmalı.")
+            .donusumu3b_mut()
+            .tasi(Vektor3::SAG * 2.0);
+
+        assert_eq!(dunya.boyut(), DunyaBoyutu::UcBoyut);
+        let konum = dunya
+            .varlik(kimlik)
+            .expect("Küp bulunmalı.")
+            .donusumu3b()
+            .konum;
+        assert!(yakin(konum.x, 2.0));
+        assert!(yakin(konum.y, 1.0));
+        assert!(yakin(konum.z, -2.0));
     }
 }
