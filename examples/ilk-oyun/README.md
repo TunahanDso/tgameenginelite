@@ -1,17 +1,28 @@
 # İlk Oyun Örneği
 
-Bu örnek, Tgame Engine Lite'ın Türkçe kullanıcı API'sini kullanarak gerçek bir 800×600 pencere açar ve GPU üzerinde renkli bir üçgen çizer.
+Bu örnek, Tgame Engine Lite'ın Türkçe API'siyle gerçek bir 800×600 pencere ve oynanabilir bir 2B dünya oluşturur.
 
-Ayrıca:
+Sahnede:
 
-- Boşluk tuşuna ilk basıldığı kareyi ve toplam oyun süresini konsola yazar.
-- Escape tuşuyla oyun döngüsünü kontrollü biçimde kapatır.
-- Pencere yeniden boyutlandırıldığında GPU yüzeyini günceller.
+- Sarı bir oyuncu üçgeni
+- Sekiz renkli dekor üçgeni
+- Oyuncuyu takip eden bir `Kamera2B`
+- Konum, ölçek, dönüş ve renk taşıyan kimlikli varlıklar
+- Bütün üçgenleri tek çizim çağrısında sunan GPU instancing sistemi bulunur
 
-Çalıştırmak için:
+## Kontroller
+
+- `WASD` veya yön tuşları: oyuncuyu hareket ettirir
+- Hareket sırasında oyuncu döner
+- `Boşluk`: oyuncu konumunu, kare sayısını ve toplam süreyi konsola yazar
+- `Escape`: oyunu kontrollü biçimde kapatır
+
+Hareket kare süresinden bağımsızdır ve çapraz yönde hız artmaması için yön vektörü birim uzunluğa getirilir.
+
+## Çalıştırma
 
 ```powershell
 cargo run -p ilk-oyun
 ```
 
-Beklenen görüntü koyu arka plan üzerinde kırmızı, yeşil ve mavi köşelere sahip bir üçgendir.
+Beklenen görüntü koyu arka plan üzerinde sarı oyuncu ve farklı konum, ölçek, dönüş ve renklere sahip sekiz dekor üçgenidir. Oyuncu hareket ettikçe kamera onunla birlikte ilerler.
