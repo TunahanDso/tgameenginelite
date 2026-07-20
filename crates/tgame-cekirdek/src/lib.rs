@@ -46,6 +46,11 @@ impl Cozunurluk {
         Self { genislik, yukseklik }
     }
 
+    /// Çözünürlüğün kullanılabilir olup olmadığını doğrular.
+    ///
+    /// # Errors
+    ///
+    /// Genişlik veya yükseklik sıfır olduğunda [`OyunHatasi`] döndürür.
     pub fn dogrula(self) -> OyunSonucu<Self> {
         if self.genislik == 0 || self.yukseklik == 0 {
             return Err(OyunHatasi::yeni("Çözünürlük sıfır olamaz."));
