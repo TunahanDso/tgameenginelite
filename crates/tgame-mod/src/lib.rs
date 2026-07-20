@@ -44,3 +44,19 @@ impl ModYoneticisi {
         &self.yuklu_modlar
     }
 }
+
+#[cfg(test)]
+mod testler {
+    use super::{ModBilgisi, ModYoneticisi};
+
+    #[test]
+    fn mod_yoneticisi_kayit_sirasini_korur() {
+        let mut yonetici = ModYoneticisi::yeni();
+        yonetici.kaydet(ModBilgisi::yeni("ilk", "İlk Mod", "1.0.0"));
+        yonetici.kaydet(ModBilgisi::yeni("ikinci", "İkinci Mod", "1.1.0"));
+
+        assert_eq!(yonetici.yuklu_modlar().len(), 2);
+        assert_eq!(yonetici.yuklu_modlar()[0].kimlik, "ilk");
+        assert_eq!(yonetici.yuklu_modlar()[1].kimlik, "ikinci");
+    }
+}
