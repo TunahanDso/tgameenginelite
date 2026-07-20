@@ -87,7 +87,8 @@ impl Grafik {
                 resource: kamera_tamponu.as_entire_binding(),
             }],
         });
-        let ornek_tamponu = ornek_tamponu_olustur(&aygit, BASLANGIC_ORNEK_TAMPON_BOYUTU);
+        let ornek_tamponu =
+            ornek_tamponu_olustur(&aygit, BASLANGIC_ORNEK_TAMPON_BOYUTU);
         let cizim_hatti = cizim_hatti_olustur(&aygit, yapilandirma.format, &kamera_yerlesimi);
 
         yuzey.configure(&aygit, &yapilandirma);
@@ -387,6 +388,9 @@ mod testler {
 
     #[test]
     fn cok_buyuk_piksel_degeri_guvenli_sinirlanir() {
-        assert_eq!(piksel_f32(u32::MAX), f32::from(u16::MAX));
+        assert_eq!(
+            piksel_f32(u32::MAX).to_bits(),
+            f32::from(u16::MAX).to_bits()
+        );
     }
 }
