@@ -3,11 +3,21 @@
 use std::sync::Arc;
 
 use tgame_cekirdek::{Cozunurluk, OyunHatasi, OyunSonucu};
+use tgame_varlik::{Dunya, Gorunum2B};
 use winit::window::Window;
 
 const UCGEN_GOLGELENDIRICISI: &str = include_str!("ucgen.wgsl");
+const KAMERA_TAMPON_BOYUTU: u64 = 16;
+const ORNEK_ADIMI: usize = 36;
+const BASLANGIC_ORNEK_KAPASITESI: u64 = 36 * 64;
+const ORNEK_NITELIKLERI: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![
+    0 => Float32x2,
+    1 => Float32x2,
+    2 => Float32,
+    3 => Float32x4
+];
 
-/// Pencereye bağlı GPU yüzeyini ve çizim kaynaklarını yönetir.
+/// Pencereye bağlı GPU yüzeyini ve toplu varlık çizim kaynaklarını yönetir.
 pub struct Grafik {
     pencere: Arc<Window>,
     ornek: wgpu::Instance,
@@ -16,6 +26,12 @@ pub struct Grafik {
     aygit: wgpu::Device,
     kuyruk: wgpu::Queue,
     yapilandirma: wgpu::SurfaceConfiguration,
+    kamera_yerlesimi: wgpu::BindGroupLayout,
+    kamera_tamponu: wgpu::Buffer,
+    kamera_grubu: wgpu::BindGroup,
+    ornek_tamponu: wgpu::Buffer,
+    ornek_tampon_kapasitesi: u64,
+    ornek_baytlari: Vec<u8>,
     cizim_hatti: wgpu::RenderPipeline,
     boyut: Cozunurluk,
 }
@@ -53,7 +69,27 @@ impl Grafik {
         let yapilandirma = yuzey
             .get_default_config(&bagdastirici, boyut.genislik, boyut.yukseklik)
             .ok_or_else(|| OyunHatasi::yeni("GPU, pencere yüzeyini desteklemiyor."))?;
-        let cizim_hatti = cizim_hatti_olustur(&aygit, yapilandirma.format);
+        let kamera_yerlesimi = kamera_yerlesimi_olustur(&aygit);
+        let kamera_tamponu = aygit.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Tgame Kamera Uniform Tamponu"),
+            size: KAMERA_TAMPON_BOYUTU,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let kamera_grubu = aygit.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Tgame Kamera Bağlama Grubu"),
+            layout: &kamera_yerlesimi,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: kamera_tamponu.as_entire_binding(),
+            }],
+        });
+        let ornek_tamponu = ornek_tamponu_olustur(&aygit, BASLANGIC_ORNEK_KAPASITESI);
+        let cizim_hatti = cizim_hatti_olustur(
+            &aygit,
+            yapilandirma.format,
+            &kamera_yerlesimi,
+        );
 
         yuzey.configure(&aygit, &yapilandirma);
 
@@ -65,6 +101,12 @@ impl Grafik {
             aygit,
             kuyruk,
             yapilandirma,
+            kamera_yerlesimi,
+            kamera_tamponu,
+            kamera_grubu,
+            ornek_tamponu,
+            ornek_tampon_kapasitesi: BASLANGIC_ORNEK_KAPASITESI,
+            ornek_baytlari: Vec::with_capacity(BASLANGIC_ORNEK_KAPASITESI as usize),
             cizim_hatti,
             boyut,
         })
@@ -82,13 +124,16 @@ impl Grafik {
         self.yuzeyi_yapilandir();
     }
 
-    /// Bir kare çizip pencere yüzeyine sunar.
+    /// Dünyadaki etkin üçgen varlıkları tek toplu çizim çağrısıyla sunar.
     ///
     /// # Errors
     ///
-    /// GPU yüzeyi kaybolur ve yeniden oluşturulamazsa veya yüzey doğrulama
-    /// hatası oluşursa [`OyunHatasi`] döndürür.
-    pub fn ciz(&mut self) -> OyunSonucu {
+    /// GPU tamponu büyütülemezse, GPU yüzeyi kaybolur ve yeniden oluşturulamazsa
+    /// veya yüzey doğrulama hatası oluşursa [`OyunHatasi`] döndürür.
+    pub fn ciz(&mut self, dunya: &Dunya) -> OyunSonucu {
+        let ornek_sayisi = self.ornekleri_hazirla(dunya)?;
+        self.kamerayi_yaz(dunya);
+
         let (kare, yeniden_yapilandir) = match self.yuzey.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(kare) => (kare, false),
             wgpu::CurrentSurfaceTexture::Suboptimal(kare) => (kare, true),
@@ -142,7 +187,9 @@ impl Grafik {
                 multiview_mask: None,
             });
             cizim_gecisi.set_pipeline(&self.cizim_hatti);
-            cizim_gecisi.draw(0..3, 0..1);
+            cizim_gecisi.set_bind_group(0, &self.kamera_grubu, &[]);
+            cizim_gecisi.set_vertex_buffer(0, self.ornek_tamponu.slice(..));
+            cizim_gecisi.draw(0..3, 0..ornek_sayisi);
         }
 
         self.kuyruk.submit(Some(komut_kaydedici.finish()));
@@ -153,6 +200,56 @@ impl Grafik {
         }
 
         Ok(())
+    }
+
+    fn ornekleri_hazirla(&mut self, dunya: &Dunya) -> OyunSonucu<u32> {
+        self.ornek_baytlari.clear();
+
+        for varlik in dunya.varliklar().iter().filter(|varlik| varlik.etkin_mi()) {
+            let Some(Gorunum2B::Ucgen { renk }) = varlik.gorunumu() else {
+                continue;
+            };
+            let donusum = varlik.donusumu();
+            f32_yaz(&mut self.ornek_baytlari, donusum.konum.x);
+            f32_yaz(&mut self.ornek_baytlari, donusum.konum.y);
+            f32_yaz(&mut self.ornek_baytlari, donusum.olcek.x);
+            f32_yaz(&mut self.ornek_baytlari, donusum.olcek.y);
+            f32_yaz(&mut self.ornek_baytlari, donusum.donus_radyan);
+            f32_yaz(&mut self.ornek_baytlari, renk.kirmizi);
+            f32_yaz(&mut self.ornek_baytlari, renk.yesil);
+            f32_yaz(&mut self.ornek_baytlari, renk.mavi);
+            f32_yaz(&mut self.ornek_baytlari, renk.alfa);
+        }
+
+        let gerekli_boyut = u64::try_from(self.ornek_baytlari.len())
+            .map_err(|_| OyunHatasi::yeni("GPU örnek verisi desteklenen boyutu aştı."))?;
+        if gerekli_boyut > self.ornek_tampon_kapasitesi {
+            let yeni_kapasite = gerekli_boyut
+                .checked_next_power_of_two()
+                .unwrap_or(gerekli_boyut);
+            self.ornek_tamponu = ornek_tamponu_olustur(&self.aygit, yeni_kapasite);
+            self.ornek_tampon_kapasitesi = yeni_kapasite;
+        }
+        if !self.ornek_baytlari.is_empty() {
+            self.kuyruk
+                .write_buffer(&self.ornek_tamponu, 0, &self.ornek_baytlari);
+        }
+
+        let ornek_sayisi = self.ornek_baytlari.len() / ORNEK_ADIMI;
+        u32::try_from(ornek_sayisi)
+            .map_err(|_| OyunHatasi::yeni("Tek karede desteklenenden fazla varlık çiziliyor."))
+    }
+
+    fn kamerayi_yaz(&self, dunya: &Dunya) {
+        let kamera = dunya.kamera();
+        let en_boy_orani = self.yapilandirma.width as f32 / self.yapilandirma.height as f32;
+        let mut baytlar = Vec::with_capacity(KAMERA_TAMPON_BOYUTU as usize);
+        f32_yaz(&mut baytlar, kamera.konum.x);
+        f32_yaz(&mut baytlar, kamera.konum.y);
+        f32_yaz(&mut baytlar, kamera.gorus_yuksekligi * 0.5);
+        f32_yaz(&mut baytlar, en_boy_orani);
+        self.kuyruk
+            .write_buffer(&self.kamera_tamponu, 0, &baytlar);
     }
 
     fn yuzeyi_yapilandir(&self) {
@@ -173,7 +270,11 @@ impl Grafik {
             .ok_or_else(|| OyunHatasi::yeni("Yenilenen GPU yüzeyi desteklenmiyor."))?;
 
         if yeni_yapilandirma.format != self.yapilandirma.format {
-            self.cizim_hatti = cizim_hatti_olustur(&self.aygit, yeni_yapilandirma.format);
+            self.cizim_hatti = cizim_hatti_olustur(
+                &self.aygit,
+                yeni_yapilandirma.format,
+                &self.kamera_yerlesimi,
+            );
         }
 
         yeni_yuzey.configure(&self.aygit, &yeni_yapilandirma);
@@ -183,28 +284,65 @@ impl Grafik {
     }
 }
 
+fn kamera_yerlesimi_olustur(aygit: &wgpu::Device) -> wgpu::BindGroupLayout {
+    aygit.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some("Tgame Kamera Yerleşimi"),
+        entries: &[wgpu::BindGroupLayoutEntry {
+            binding: 0,
+            visibility: wgpu::ShaderStages::VERTEX,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        }],
+    })
+}
+
+fn ornek_tamponu_olustur(aygit: &wgpu::Device, boyut: u64) -> wgpu::Buffer {
+    aygit.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Tgame Üçgen Örnek Tamponu"),
+        size: boyut.max(ORNEK_ADIMI as u64),
+        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    })
+}
+
 fn cizim_hatti_olustur(
     aygit: &wgpu::Device,
     yuzey_bicimi: wgpu::TextureFormat,
+    kamera_yerlesimi: &wgpu::BindGroupLayout,
 ) -> wgpu::RenderPipeline {
     let golgelendirici = aygit.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("Tgame İlk Üçgen Gölgelendiricisi"),
+        label: Some("Tgame Varlık Gölgelendiricisi"),
         source: wgpu::ShaderSource::Wgsl(UCGEN_GOLGELENDIRICISI.into()),
     });
+    let cizim_hatti_yerlesimi =
+        aygit.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Tgame Varlık Çizim Hattı Yerleşimi"),
+            bind_group_layouts: &[Some(kamera_yerlesimi)],
+            immediate_size: 0,
+        });
     let renk_hedefleri = [Some(wgpu::ColorTargetState {
         format: yuzey_bicimi,
-        blend: Some(wgpu::BlendState::REPLACE),
+        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
         write_mask: wgpu::ColorWrites::ALL,
     })];
+    let ornek_yerlesimi = wgpu::VertexBufferLayout {
+        array_stride: ORNEK_ADIMI as wgpu::BufferAddress,
+        step_mode: wgpu::VertexStepMode::Instance,
+        attributes: &ORNEK_NITELIKLERI,
+    };
 
     aygit.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Tgame İlk Üçgen Çizim Hattı"),
-        layout: None,
+        label: Some("Tgame Toplu Üçgen Çizim Hattı"),
+        layout: Some(&cizim_hatti_yerlesimi),
         vertex: wgpu::VertexState {
             module: &golgelendirici,
             entry_point: Some("tepe_ana"),
             compilation_options: wgpu::PipelineCompilationOptions::default(),
-            buffers: &[],
+            buffers: &[ornek_yerlesimi],
         },
         primitive: wgpu::PrimitiveState::default(),
         depth_stencil: None,
@@ -220,15 +358,28 @@ fn cizim_hatti_olustur(
     })
 }
 
+fn f32_yaz(hedef: &mut Vec<u8>, deger: f32) {
+    hedef.extend_from_slice(&deger.to_le_bytes());
+}
+
 #[cfg(test)]
 mod testler {
-    use super::UCGEN_GOLGELENDIRICISI;
+    use super::{ORNEK_ADIMI, UCGEN_GOLGELENDIRICISI, f32_yaz};
 
     #[test]
-    fn ucgen_golgelendiricisi_giris_noktalarini_icerir() {
-        assert!(UCGEN_GOLGELENDIRICISI.contains("@vertex"));
-        assert!(UCGEN_GOLGELENDIRICISI.contains("tepe_ana"));
-        assert!(UCGEN_GOLGELENDIRICISI.contains("@fragment"));
-        assert!(UCGEN_GOLGELENDIRICISI.contains("parca_ana"));
+    fn varlik_golgelendiricisi_kamera_ve_ornek_girdilerini_icerir() {
+        assert!(UCGEN_GOLGELENDIRICISI.contains("@group(0) @binding(0)"));
+        assert!(UCGEN_GOLGELENDIRICISI.contains("varlik_konumu"));
+        assert!(UCGEN_GOLGELENDIRICISI.contains("varlik_rengi"));
+    }
+
+    #[test]
+    fn bir_ornek_dokuz_f32_degerinden_olusur() {
+        let mut baytlar = Vec::new();
+        for deger in 0..9 {
+            f32_yaz(&mut baytlar, deger as f32);
+        }
+
+        assert_eq!(baytlar.len(), ORNEK_ADIMI);
     }
 }
