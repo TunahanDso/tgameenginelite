@@ -1,6 +1,6 @@
 use tgame::onsoz::{
-    Donusum2B, Dunya, Kamera2B, Oyun, OyunAkisi, OyunSonucu, Renk, Sahne, Tus,
-    Varlik, VarlikKimligi, Vektor2,
+    Donusum2B, Dunya, Kamera2B, Oyun, OyunAkisi, OyunSonucu, Renk, Sahne, Tus, Varlik,
+    VarlikKimligi, Vektor2,
 };
 
 const OYUNCU_HIZI: f32 = 2.8;

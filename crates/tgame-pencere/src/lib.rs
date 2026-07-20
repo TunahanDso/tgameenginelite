@@ -65,11 +65,7 @@ impl PencereAyarlari {
 ///
 /// Çözünürlük geçersizse, olay döngüsü, pencere veya GPU grafik sistemi
 /// oluşturulamazsa [`OyunHatasi`] döndürür.
-pub fn calistir(
-    ayarlar: PencereAyarlari,
-    dunya: Dunya,
-    kare_gorevi: KareGorevi,
-) -> OyunSonucu {
+pub fn calistir(ayarlar: PencereAyarlari, dunya: Dunya, kare_gorevi: KareGorevi) -> OyunSonucu {
     ayarlar.cozunurluk.dogrula()?;
 
     let olay_dongusu = EventLoop::new()

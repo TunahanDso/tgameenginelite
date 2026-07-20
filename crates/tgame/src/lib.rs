@@ -88,8 +88,7 @@ impl Oyun {
             kare_gorevi,
         } = self;
         let cozunurluk = ayarlar.cozunurluk.dogrula()?;
-        let kare_gorevi =
-            kare_gorevi.unwrap_or_else(|| Box::new(|_, _, _| OyunAkisi::DevamEt));
+        let kare_gorevi = kare_gorevi.unwrap_or_else(|| Box::new(|_, _, _| OyunAkisi::DevamEt));
 
         println!(
             "{} başlatılıyor — {}×{} — {} sahne — {} varlık — {} yüklü mod — mod klasörü: {}",

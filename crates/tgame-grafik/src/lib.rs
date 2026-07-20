@@ -85,11 +85,7 @@ impl Grafik {
             }],
         });
         let ornek_tamponu = ornek_tamponu_olustur(&aygit, BASLANGIC_ORNEK_KAPASITESI);
-        let cizim_hatti = cizim_hatti_olustur(
-            &aygit,
-            yapilandirma.format,
-            &kamera_yerlesimi,
-        );
+        let cizim_hatti = cizim_hatti_olustur(&aygit, yapilandirma.format, &kamera_yerlesimi);
 
         yuzey.configure(&aygit, &yapilandirma);
 
@@ -248,8 +244,7 @@ impl Grafik {
         f32_yaz(&mut baytlar, kamera.konum.y);
         f32_yaz(&mut baytlar, kamera.gorus_yuksekligi * 0.5);
         f32_yaz(&mut baytlar, en_boy_orani);
-        self.kuyruk
-            .write_buffer(&self.kamera_tamponu, 0, &baytlar);
+        self.kuyruk.write_buffer(&self.kamera_tamponu, 0, &baytlar);
     }
 
     fn yuzeyi_yapilandir(&self) {
@@ -318,12 +313,11 @@ fn cizim_hatti_olustur(
         label: Some("Tgame Varlık Gölgelendiricisi"),
         source: wgpu::ShaderSource::Wgsl(UCGEN_GOLGELENDIRICISI.into()),
     });
-    let cizim_hatti_yerlesimi =
-        aygit.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Tgame Varlık Çizim Hattı Yerleşimi"),
-            bind_group_layouts: &[Some(kamera_yerlesimi)],
-            immediate_size: 0,
-        });
+    let cizim_hatti_yerlesimi = aygit.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("Tgame Varlık Çizim Hattı Yerleşimi"),
+        bind_group_layouts: &[Some(kamera_yerlesimi)],
+        immediate_size: 0,
+    });
     let renk_hedefleri = [Some(wgpu::ColorTargetState {
         format: yuzey_bicimi,
         blend: Some(wgpu::BlendState::ALPHA_BLENDING),
