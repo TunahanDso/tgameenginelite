@@ -34,7 +34,7 @@ impl Vektor2 {
     /// Vektör uzunluğunun karesini döndürür.
     #[must_use]
     pub const fn uzunluk_karesi(self) -> f32 {
-        self.x.mul_add(self.x, self.y * self.y)
+        self.x * self.x + self.y * self.y
     }
 
     /// Vektör uzunluğunu döndürür.
