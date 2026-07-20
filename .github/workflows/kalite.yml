@@ -1,0 +1,37 @@
+name: Kalite
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  denetim:
+    name: Rust kalite denetimi
+    runs-on: windows-latest
+
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@v4
+
+      - name: Rust araç zincirini kur
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cargo önbelleğini hazırla
+        uses: Swatinem/rust-cache@v2
+
+      - name: Biçimi denetle
+        run: cargo fmt --all --check
+
+      - name: Workspace'i denetle
+        run: cargo check --workspace --all-targets
+
+      - name: Clippy denetimini çalıştır
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Testleri çalıştır
+        run: cargo test --workspace --all-targets --all-features
