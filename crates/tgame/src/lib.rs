@@ -2,6 +2,7 @@
 
 use tgame_cekirdek::{Cozunurluk, OyunAyarlari, OyunSonucu};
 use tgame_mod::ModYoneticisi;
+use tgame_pencere::{PencereAyarlari, calistir as pencereyi_calistir};
 use tgame_sahne::Sahne;
 
 /// Oyun geliştiricisinin doğrudan kullandığı ana motor yapısı.
@@ -44,28 +45,32 @@ impl Oyun {
         self
     }
 
-    /// Motoru doğrular ve oyun döngüsünü başlatır.
-    ///
-    /// İlk iskelette gerçek pencere ve grafik döngüsü henüz eklenmemiştir.
+    /// Motoru doğrular, oyun penceresini oluşturur ve olay döngüsünü başlatır.
     ///
     /// # Errors
     ///
-    /// Oyun ayarları geçersizse, örneğin çözünürlük boyutlarından biri sıfırsa,
-    /// [`tgame_cekirdek::OyunHatasi`] döndürür.
+    /// Oyun ayarları geçersizse, olay döngüsü oluşturulamazsa veya işletim
+    /// sistemi pencere oluşturmayı reddederse [`tgame_cekirdek::OyunHatasi`]
+    /// döndürür.
     pub fn calistir(self) -> OyunSonucu {
-        let cozunurluk = self.ayarlar.cozunurluk.dogrula()?;
+        let Self {
+            ayarlar,
+            sahneler,
+            mod_yoneticisi,
+        } = self;
+        let cozunurluk = ayarlar.cozunurluk.dogrula()?;
 
         println!(
-            "{} başlatılıyor — {}×{} — {} sahne — mod klasörü: {}",
-            self.ayarlar.baslik,
+            "{} başlatılıyor — {}×{} — {} sahne — {} yüklü mod — mod klasörü: {}",
+            ayarlar.baslik,
             cozunurluk.genislik,
             cozunurluk.yukseklik,
-            self.sahneler.len(),
-            self.ayarlar.mod_klasoru,
+            sahneler.len(),
+            mod_yoneticisi.yuklu_modlar().len(),
+            ayarlar.mod_klasoru,
         );
 
-        let _ = self.mod_yoneticisi;
-        Ok(())
+        pencereyi_calistir(PencereAyarlari::yeni(ayarlar.baslik, cozunurluk))
     }
 }
 
@@ -75,4 +80,34 @@ pub mod onsoz {
     pub use tgame_cekirdek::{Cozunurluk, OyunHatasi, OyunSonucu};
     pub use tgame_mod::{ModBilgisi, ModYoneticisi};
     pub use tgame_sahne::Sahne;
+}
+
+#[cfg(test)]
+mod testler {
+    use super::Oyun;
+    use tgame_cekirdek::Cozunurluk;
+    use tgame_sahne::Sahne;
+
+    #[test]
+    fn oyun_varsayilan_ayarlarla_olusturulur() {
+        let oyun = Oyun::yeni("Deneme");
+
+        assert_eq!(oyun.ayarlar.baslik, "Deneme");
+        assert_eq!(oyun.ayarlar.cozunurluk, Cozunurluk::BASLANGIC);
+        assert_eq!(oyun.ayarlar.mod_klasoru, "modlar");
+        assert!(oyun.sahneler.is_empty());
+        assert!(oyun.mod_yoneticisi.yuklu_modlar().is_empty());
+    }
+
+    #[test]
+    fn kurucu_yontemler_oyunu_yapilandirir() {
+        let oyun = Oyun::yeni("Deneme")
+            .cozunurluk(1024, 768)
+            .mod_klasoru("eklentiler")
+            .sahne_ekle(Sahne::yeni("Baslangic"));
+
+        assert_eq!(oyun.ayarlar.cozunurluk, Cozunurluk::yeni(1024, 768));
+        assert_eq!(oyun.ayarlar.mod_klasoru, "eklentiler");
+        assert_eq!(oyun.sahneler.len(), 1);
+    }
 }
