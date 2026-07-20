@@ -1,6 +1,6 @@
 # İlk Oyun Örneği
 
-Bu örnek, Tgame Engine Lite'ın Türkçe kullanıcı API'sini kullanarak gerçek bir 800×600 pencere açar.
+Bu örnek, Tgame Engine Lite'ın Türkçe kullanıcı API'sini kullanarak gerçek bir 800×600 pencere açar ve GPU üzerinde renkli bir üçgen çizer.
 
 Çalıştırmak için:
 
@@ -8,4 +8,4 @@ Bu örnek, Tgame Engine Lite'ın Türkçe kullanıcı API'sini kullanarak gerçe
 cargo run -p ilk-oyun
 ```
 
-Pencere, işletim sisteminin kapatma düğmesine basılana kadar açık kalır.
+Beklenen görüntü koyu arka plan üzerinde kırmızı, yeşil ve mavi köşelere sahip bir üçgendir. Pencere yeniden boyutlandırılabilir ve işletim sisteminin kapatma düğmesiyle kontrollü biçimde kapatılır.
