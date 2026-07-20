@@ -1,80 +1,84 @@
 # Tgame Engine Lite
 
-**Tgame Engine Lite**, Rust ile geliştirilen; Türkçe, sade, modüler ve performans odaklı bir oyun motoru kütüphanesidir. Uzun vadeli hedefi 3B oyunlar olsa da motorun temeli önce sağlam bir 2B varlık, kamera ve GPU çizim sistemiyle kurulmaktadır.
+**Tgame Engine Lite**, Rust ile geliştirilen; Türkçe, editörsüz, modüler ve performans odaklı bir 2B/3B oyun motoru kütüphanesidir.
 
-Motorun kendi editör uygulaması yoktur. Oyun geliştiricileri motoru bir Rust kütüphanesi olarak projelerine ekler ve oyunlarını Türkçe API ile kodlar.
+Motor ayrı bir editör uygulaması açmaz. Oyun geliştiricisi `tgame` paketini Rust projesine ekler; dünyayı, varlıkları, kamerayı ve oyun döngüsünü Türkçe API ile kodlar.
+
+## Bugünkü durum
+
+Motor aynı çekirdekte iki grafik yolu çalıştırır:
+
+- Ortografik `Dunya::yeni()` ile 2B üçgen dünyası
+- Perspektif ve derinlik tamponlu `Dunya::yeni_3b()` ile 3B küp dünyası
+
+2B ve 3B varlıklar aynı `VarlikKimligi`, `Dunya`, girdi, zaman, pencere ve oyun döngüsü altyapısını paylaşır. Grafik katmanı dünyanın boyutuna göre doğru GPU pipeline'ını seçer.
 
 ## Temel kararlar
 
 - Programlama dili: Rust
 - En düşük Rust sürümü: 1.87
-- Başlangıç çözünürlüğü: 800×600
 - Kullanıcı API'si: Türkçe
-- Mimari: Bağımsız paketlere ayrılmış modüler Cargo workspace
-- Öncelik: Performans, kalite ve anlaşılabilirlik
-- Oyunlar: Baştan itibaren modlanabilir tasarlanacak
 - Motor türü: Editörsüz, kütüphane tabanlı
+- Grafik: wgpu 30
+- Mimari: Bağımsız paketlere ayrılmış Cargo workspace
+- Öncelik: Performans, kalite, anlaşılabilirlik ve geriye dönük uyumluluk
+- Oyunlar: Baştan itibaren modlanabilir tasarlanacak
 - Kalite kuralı: Uyarılar derleme hatası kabul edilir
-- Güvenlik kuralı: Motor workspace'inde `unsafe` kod yasaktır
+- Güvenlik kuralı: Workspace içinde `unsafe` kod yasaktır
 
 ## Paketler
 
-- `tgame`: Oyun geliştiricisinin kullandığı sade Türkçe üst API
-- `tgame-cekirdek`: Ortak ayarlar, çözünürlük, hata ve sonuç türleri
-- `tgame-girdi`: Türkçe fiziksel klavye tuşları ve karelik basma/bırakma durumları
-- `tgame-grafik`: wgpu tabanlı yüzey, kamera uniform'u, GPU instancing ve kare sunumu
-- `tgame-matematik`: `Vektor2`, yön sabitleri ve doğrusal RGBA `Renk` türü
-- `tgame-pencere`: İşletim sistemi penceresi, olay döngüsü ve sistem olaylarının yönlendirilmesi
+- `tgame`: Oyun geliştiricisinin kullandığı Türkçe üst API
+- `tgame-cekirdek`: Ayarlar, çözünürlük, hata ve sonuç türleri
+- `tgame-girdi`: Türkçe fiziksel klavye tuşları ve karelik durumlar
+- `tgame-grafik`: 2B/3B GPU pipeline'ları, instancing, indeksli mesh ve derinlik tamponu
+- `tgame-matematik`: `Vektor2`, `Vektor3`, `Matris4` ve `Renk`
+- `tgame-pencere`: İşletim sistemi penceresi ve olay döngüsü
 - `tgame-sahne`: Sahne tanımları
 - `tgame-mod`: Modlama sözleşmeleri ve mod kayıt sistemi
-- `tgame-varlik`: Kimlikli varlıklar, `Donusum2B`, görünüm, dünya ve `Kamera2B`
+- `tgame-varlik`: Kimlikli varlıklar, 2B/3B dönüşümler, görünümler, kameralar ve dünya
 - `tgame-zaman`: Kare süresi, toplam çalışma süresi ve kare sayacı
 
-## Oynanabilir ilk dünya
+## İlk 3B dünya
 
 ```rust
-use tgame::onsoz::{
-    Donusum2B, Dunya, Oyun, OyunAkisi, OyunSonucu, Renk, Tus, Varlik, Vektor2,
-};
+use tgame::onsoz::{Donusum3B, Dunya, Oyun, OyunAkisi, Renk, Varlik, Vektor3};
 
-fn main() -> OyunSonucu {
-    let mut dunya = Dunya::yeni();
-    let oyuncu = dunya.varlik_ekle(
-        Varlik::ucgen("Oyuncu", Renk::SARI)
-            .donusum(Donusum2B::yeni().olcek(Vektor2::yeni(0.5, 0.5))),
-    );
+let mut dunya = Dunya::yeni_3b();
+let oyuncu = dunya.varlik_ekle(
+    Varlik::kup("Oyuncu", Renk::SARI).donusum3b(
+        Donusum3B::yeni()
+            .konum(Vektor3::yeni(0.0, 0.0, 3.0))
+            .olcek(Vektor3::yeni(0.75, 0.75, 0.75)),
+    ),
+);
 
-    Oyun::yeni("İlk Tgame Oyunum")
-        .dunya(dunya)
-        .her_kare(move |girdi, zaman, dunya| {
-            let mut yon = Vektor2::SIFIR;
-
-            if girdi.basili_mi(Tus::W) {
-                yon += Vektor2::YUKARI;
-            }
-            if girdi.basili_mi(Tus::D) {
-                yon += Vektor2::SAG;
-            }
-
-            if let Some(varlik) = dunya.varlik_mut(oyuncu) {
-                varlik
-                    .donusumu_mut()
-                    .tasi(yon.birim() * 2.8 * zaman.kare_saniyesi());
-            }
-
-            if girdi.bu_kare_basildi_mi(Tus::Kacis) {
-                OyunAkisi::Kapat
-            } else {
-                OyunAkisi::DevamEt
-            }
-        })
-        .calistir()
-}
+Oyun::yeni("3B Oyunum")
+    .dunya(dunya)
+    .her_kare(move |girdi, zaman, dunya| {
+        if let Some(varlik) = dunya.varlik_mut(oyuncu) {
+            varlik
+                .donusumu3b_mut()
+                .dondur(Vektor3::YUKARI * zaman.kare_saniyesi());
+        }
+        let _ = girdi;
+        OyunAkisi::DevamEt
+    });
 ```
 
-Tam örnek; bir oyuncu ve sekiz dekor varlığı oluşturur. Oyuncu WASD veya yön tuşlarıyla kare hızından bağımsız hareket eder, hareket ederken döner ve kamera oyuncuyu takip eder. Bütün etkin üçgen varlıklar tek bir GPU instance buffer'ına yazılıp tek toplu çizim çağrısıyla çizilir.
+3B çizici şunları birlikte kullanır:
 
-## İlk oyunu çalıştırma
+- Sağ elli dünya koordinatları
+- Perspektif `Kamera3B`
+- 4×4 model, görünüm ve izdüşüm matrisleri
+- 24 normalli tepe ve 36 indeksli ortak küp mesh'i
+- Her küp için model matrisi ve renk taşıyan GPU instance verisi
+- `Depth32Float` derinlik dokusu ve depth test
+- Yüzey normallerine dayalı temel yönsel aydınlatma
+
+## Örnekleri çalıştırma
+
+### 3B dünya
 
 ```powershell
 cargo run -p ilk-oyun
@@ -82,9 +86,19 @@ cargo run -p ilk-oyun
 
 Kontroller:
 
-- `WASD` veya yön tuşları: hareket
-- `Boşluk`: konum, kare ve süre bilgisini konsola yazdır
+- `WASD`: oyuncuyu X-Z düzleminde hareket ettirir
+- Sol/sağ yön tuşları: kamerayı oyuncunun çevresinde döndürür
+- Yukarı/aşağı yön tuşları: kamera yüksekliğini değiştirir
+- `Boşluk`: oyuncu konumu, kare ve süre bilgisini yazdırır
 - `Escape`: kontrollü kapanış
+
+### 2B uyumluluk örneği
+
+```powershell
+cargo run -p ikiboyut-oyun
+```
+
+Bu örnek eski `Dunya::yeni()`, `Donusum2B`, `Kamera2B` ve üçgen instancing hattının 3B güncellemelerinden sonra da çalıştığını doğrular.
 
 ## Kalite denetimi
 
@@ -95,6 +109,6 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-targets --all-features
 ```
 
-Aynı denetimler her gönderimde GitHub Actions tarafından Windows üzerinde otomatik olarak çalıştırılır.
+Aynı denetimler her gönderimde GitHub Actions tarafından Windows üzerinde otomatik çalıştırılır.
 
-> Vira bismillah. Her güncelleme, Tgame Engine Lite ile daha ayrıntılı oyunlar yapılabilmesini sağlayacak.
+> Vira bismillah. Her büyük güncelleme motoru daha geniş oyun dünyalarına taşıyacak.
