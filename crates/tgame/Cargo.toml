@@ -8,8 +8,9 @@ repository.workspace = true
 
 [dependencies]
 tgame-cekirdek = { path = "../tgame-cekirdek" }
-tgame-sahne = { path = "../tgame-sahne" }
 tgame-mod = { path = "../tgame-mod" }
+tgame-pencere = { path = "../tgame-pencere" }
+tgame-sahne = { path = "../tgame-sahne" }
 
 [lints]
 workspace = true
