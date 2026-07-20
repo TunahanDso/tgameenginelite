@@ -17,3 +17,15 @@ impl Sahne {
         &self.ad
     }
 }
+
+#[cfg(test)]
+mod testler {
+    use super::Sahne;
+
+    #[test]
+    fn sahne_adini_korur() {
+        let sahne = Sahne::yeni("Başlangıç");
+
+        assert_eq!(sahne.ad(), "Başlangıç");
+    }
+}
