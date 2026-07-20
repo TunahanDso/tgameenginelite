@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tgame_cekirdek::{Cozunurluk, OyunHatasi, OyunSonucu};
 use tgame_girdi::{Girdi, Tus};
 use tgame_grafik::Grafik;
+use tgame_varlik::Dunya;
 use tgame_zaman::{Zaman, ZamanYoneticisi};
 use winit::{
     application::ApplicationHandler,
@@ -26,7 +27,7 @@ pub enum OyunAkisi {
 }
 
 /// Oyun geliştiricisinin her karede çalıştırdığı Türkçe güncelleme görevidir.
-pub type KareGorevi = Box<dyn FnMut(&Girdi, &Zaman) -> OyunAkisi>;
+pub type KareGorevi = Box<dyn FnMut(&Girdi, &Zaman, &mut Dunya) -> OyunAkisi>;
 
 /// Oluşturulacak oyun penceresinin ayarlarını taşır.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,12 +65,16 @@ impl PencereAyarlari {
 ///
 /// Çözünürlük geçersizse, olay döngüsü, pencere veya GPU grafik sistemi
 /// oluşturulamazsa [`OyunHatasi`] döndürür.
-pub fn calistir(ayarlar: PencereAyarlari, kare_gorevi: KareGorevi) -> OyunSonucu {
+pub fn calistir(
+    ayarlar: PencereAyarlari,
+    dunya: Dunya,
+    kare_gorevi: KareGorevi,
+) -> OyunSonucu {
     ayarlar.cozunurluk.dogrula()?;
 
     let olay_dongusu = EventLoop::new()
         .map_err(|hata| OyunHatasi::yeni(format!("Pencere olay döngüsü oluşturulamadı: {hata}")))?;
-    let mut uygulama = Uygulama::yeni(ayarlar, kare_gorevi);
+    let mut uygulama = Uygulama::yeni(ayarlar, dunya, kare_gorevi);
 
     olay_dongusu
         .run_app(&mut uygulama)
@@ -86,6 +91,7 @@ struct Uygulama {
     ayarlar: PencereAyarlari,
     pencere: Option<Arc<Window>>,
     grafik: Option<Grafik>,
+    dunya: Dunya,
     girdi: Girdi,
     zaman: ZamanYoneticisi,
     kare_gorevi: KareGorevi,
@@ -93,11 +99,12 @@ struct Uygulama {
 }
 
 impl Uygulama {
-    fn yeni(ayarlar: PencereAyarlari, kare_gorevi: KareGorevi) -> Self {
+    fn yeni(ayarlar: PencereAyarlari, dunya: Dunya, kare_gorevi: KareGorevi) -> Self {
         Self {
             ayarlar,
             pencere: None,
             grafik: None,
+            dunya,
             girdi: Girdi::yeni(),
             zaman: ZamanYoneticisi::yeni(),
             kare_gorevi,
@@ -180,7 +187,7 @@ impl ApplicationHandler for Uygulama {
             }
             WindowEvent::RedrawRequested => {
                 let zaman = self.zaman.kareyi_baslat();
-                let akis = (self.kare_gorevi)(&self.girdi, &zaman);
+                let akis = (self.kare_gorevi)(&self.girdi, &zaman, &mut self.dunya);
 
                 if akis == OyunAkisi::Kapat {
                     self.girdi.kareyi_bitir();
@@ -192,7 +199,7 @@ impl ApplicationHandler for Uygulama {
                     return;
                 };
 
-                if let Err(hata) = grafik.ciz() {
+                if let Err(hata) = grafik.ciz(&self.dunya) {
                     self.hata = Some(hata);
                     olay_dongusu.exit();
                     return;
