@@ -1,0 +1,31 @@
+name: Geçici Büyük Clippy Ayrıntısı
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ayrinti:
+    runs-on: windows-latest
+
+    steps:
+      - name: Yalnızca Clippy hatalarını göster
+        shell: pwsh
+        run: |
+          git clone --branch agent/ilk-moduler-iskelet --depth 1 https://github.com/${{ github.repository }} kaynak 2>$null
+          Set-Location kaynak
+          rustup component add clippy 2>$null
+          $json = cargo clippy --workspace --all-targets --all-features --message-format=json -- -D warnings 2>$null
+          $kod = $LASTEXITCODE
+          $json | ForEach-Object {
+            try {
+              $mesaj = $_ | ConvertFrom-Json
+              if ($mesaj.reason -eq "compiler-message" -and $mesaj.message.level -eq "error") {
+                Write-Host $mesaj.message.rendered
+              }
+            } catch {
+            }
+          }
+          exit $kod
