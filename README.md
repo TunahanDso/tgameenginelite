@@ -7,6 +7,7 @@ Motorun kendi editör uygulaması yoktur. Oyun geliştiricileri motoru bir Rust 
 ## Temel kararlar
 
 - Programlama dili: Rust
+- En düşük Rust sürümü: 1.87
 - Başlangıç çözünürlüğü: 800×600
 - Kullanıcı API'si: Türkçe
 - Mimari: Bağımsız paketlere ayrılmış modüler Cargo workspace
@@ -14,12 +15,14 @@ Motorun kendi editör uygulaması yoktur. Oyun geliştiricileri motoru bir Rust 
 - Oyunlar: Baştan itibaren modlanabilir tasarlanacak
 - Motor türü: Editörsüz, kütüphane tabanlı
 - Kalite kuralı: Uyarılar derleme hatası kabul edilir
+- Güvenlik kuralı: Motor workspace'inde `unsafe` kod yasaktır
 
 ## Paketler
 
 - `tgame`: Oyun geliştiricisinin kullandığı sade Türkçe üst API
 - `tgame-cekirdek`: Ortak ayarlar, çözünürlük, hata ve sonuç türleri
-- `tgame-pencere`: İşletim sistemi penceresi ve olay döngüsü
+- `tgame-grafik`: wgpu tabanlı GPU yüzeyi, çizim hattı ve kare sunumu
+- `tgame-pencere`: İşletim sistemi penceresi, olay döngüsü ve grafik olaylarının yönlendirilmesi
 - `tgame-sahne`: Sahne tanımları
 - `tgame-mod`: Modlama sözleşmeleri ve mod kayıt sistemi
 
@@ -37,7 +40,13 @@ fn main() -> OyunSonucu {
 }
 ```
 
-Bu örnek gerçek bir 800×600 işletim sistemi penceresi oluşturur ve pencere kapatılana kadar olay döngüsünü çalıştırır.
+Bu örnek gerçek bir 800×600 işletim sistemi penceresi oluşturur, yüksek performanslı GPU bağdaştırıcısını seçer ve WGSL gölgelendiricisiyle renkli bir üçgen çizer. Pencere yeniden boyutlandırıldığında GPU yüzeyi güncellenir; yüzey kaybı ve geçersizleşme durumları kontrollü biçimde ele alınır.
+
+Çalıştırmak için:
+
+```powershell
+cargo run -p ilk-oyun
+```
 
 ## Kalite denetimi
 
