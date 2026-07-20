@@ -14,7 +14,9 @@ pub struct OyunHatasi {
 impl OyunHatasi {
     #[must_use]
     pub fn yeni(ileti: impl Into<String>) -> Self {
-        Self { ileti: ileti.into() }
+        Self {
+            ileti: ileti.into(),
+        }
     }
 
     #[must_use]
@@ -43,7 +45,10 @@ impl Cozunurluk {
 
     #[must_use]
     pub const fn yeni(genislik: u32, yukseklik: u32) -> Self {
-        Self { genislik, yukseklik }
+        Self {
+            genislik,
+            yukseklik,
+        }
     }
 
     /// Çözünürlüğün kullanılabilir olup olmadığını doğrular.
