@@ -15,17 +15,29 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Repoyu al ve derlemeyi denetle
+      - name: Kaynak kodu al
+        uses: actions/checkout@v4
+        with:
+          ref: agent/ilk-moduler-iskelet
+
+      - name: Rust araç zincirini kur
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo önbelleğini hazırla
+        uses: Swatinem/rust-cache@v2
+
+      - name: Derleyici hatalarını göster
         shell: pwsh
         run: |
-          git clone --branch agent/ilk-moduler-iskelet --depth 1 https://github.com/${{ github.repository }} kaynak
-          Set-Location kaynak
-          $cikti = cargo check --workspace --all-targets 2>&1
+          $json = cargo check --workspace --all-targets --message-format=json 2>$null
           $kod = $LASTEXITCODE
-          $cikti | Where-Object {
-            $_ -match '^error' -or
-            $_ -match '^\s*-->' -or
-            $_ -match '^\s*= (help|note)' -or
-            $_ -match 'expected|found|unknown field|no method|mismatched types|cannot|not found'
-          } | Select-Object -Last 80
+          $json | ForEach-Object {
+            try {
+              $mesaj = $_ | ConvertFrom-Json
+              if ($mesaj.reason -eq "compiler-message" -and $mesaj.message.level -eq "error") {
+                Write-Host $mesaj.message.rendered
+              }
+            } catch {
+            }
+          }
           exit $kod
