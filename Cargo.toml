@@ -11,6 +11,7 @@ members = [
     "crates/tgame-mod",
     "crates/tgame-varlik",
     "crates/tgame-zaman",
+    "examples/ikiboyut-oyun",
     "examples/ilk-oyun",
 ]
 
