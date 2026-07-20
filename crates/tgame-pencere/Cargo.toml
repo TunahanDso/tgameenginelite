@@ -9,7 +9,9 @@ repository.workspace = true
 [dependencies]
 pollster = "0.4.0"
 tgame-cekirdek = { path = "../tgame-cekirdek" }
+tgame-girdi = { path = "../tgame-girdi" }
 tgame-grafik = { path = "../tgame-grafik" }
+tgame-zaman = { path = "../tgame-zaman" }
 winit = "0.30.13"
 
 [lints]
