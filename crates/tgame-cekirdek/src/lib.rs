@@ -83,3 +83,38 @@ impl OyunAyarlari {
         }
     }
 }
+
+#[cfg(test)]
+mod testler {
+    use super::{Cozunurluk, OyunAyarlari, OyunHatasi};
+
+    #[test]
+    fn baslangic_cozunurlugu_800x600_dur() {
+        assert_eq!(Cozunurluk::BASLANGIC, Cozunurluk::yeni(800, 600));
+    }
+
+    #[test]
+    fn sifir_boyutlu_cozunurluk_reddedilir() {
+        let hata = Cozunurluk::yeni(0, 600)
+            .dogrula()
+            .expect_err("Sıfır genişlik geçersiz olmalıdır.");
+
+        assert_eq!(hata.ileti(), "Çözünürlük sıfır olamaz.");
+    }
+
+    #[test]
+    fn oyun_ayarlari_guvenli_varsayilanlarla_olusturulur() {
+        let ayarlar = OyunAyarlari::yeni("Deneme");
+
+        assert_eq!(ayarlar.baslik, "Deneme");
+        assert_eq!(ayarlar.cozunurluk, Cozunurluk::BASLANGIC);
+        assert_eq!(ayarlar.mod_klasoru, "modlar");
+    }
+
+    #[test]
+    fn oyun_hatasi_iletiyi_gosterir() {
+        let hata = OyunHatasi::yeni("örnek hata");
+
+        assert_eq!(hata.to_string(), "örnek hata");
+    }
+}
