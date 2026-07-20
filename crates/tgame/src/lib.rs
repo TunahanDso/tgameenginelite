@@ -5,9 +5,7 @@ use std::fmt;
 use tgame_cekirdek::{Cozunurluk, OyunAyarlari, OyunSonucu};
 use tgame_girdi::Girdi;
 use tgame_mod::ModYoneticisi;
-use tgame_pencere::{
-    KareGorevi, OyunAkisi, PencereAyarlari, calistir as pencereyi_calistir,
-};
+use tgame_pencere::{KareGorevi, OyunAkisi, PencereAyarlari, calistir as pencereyi_calistir};
 use tgame_sahne::Sahne;
 use tgame_zaman::Zaman;
 

@@ -134,8 +134,7 @@ mod testler {
         let mut yonetici = ZamanYoneticisi::baslangicla(baslangic);
 
         let ilk = yonetici.kareyi_baslat_aninda(baslangic + Duration::from_millis(16));
-        let ikinci =
-            yonetici.kareyi_baslat_aninda(baslangic + Duration::from_millis(36));
+        let ikinci = yonetici.kareyi_baslat_aninda(baslangic + Duration::from_millis(36));
 
         assert_eq!(ilk.kare_suresi(), Duration::from_millis(16));
         assert_eq!(ilk.toplam_sure(), Duration::from_millis(16));
