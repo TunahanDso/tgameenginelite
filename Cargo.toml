@@ -3,10 +3,12 @@ resolver = "2"
 members = [
     "crates/tgame",
     "crates/tgame-cekirdek",
+    "crates/tgame-girdi",
     "crates/tgame-grafik",
     "crates/tgame-pencere",
     "crates/tgame-sahne",
     "crates/tgame-mod",
+    "crates/tgame-zaman",
     "examples/ilk-oyun",
 ]
 
