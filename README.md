@@ -21,26 +21,43 @@ Motorun kendi editör uygulaması yoktur. Oyun geliştiricileri motoru bir Rust 
 
 - `tgame`: Oyun geliştiricisinin kullandığı sade Türkçe üst API
 - `tgame-cekirdek`: Ortak ayarlar, çözünürlük, hata ve sonuç türleri
+- `tgame-girdi`: Türkçe fiziksel klavye tuşları ve karelik basma/bırakma durumları
 - `tgame-grafik`: wgpu tabanlı GPU yüzeyi, çizim hattı ve kare sunumu
-- `tgame-pencere`: İşletim sistemi penceresi, olay döngüsü ve grafik olaylarının yönlendirilmesi
+- `tgame-pencere`: İşletim sistemi penceresi, olay döngüsü ve sistem olaylarının yönlendirilmesi
 - `tgame-sahne`: Sahne tanımları
 - `tgame-mod`: Modlama sözleşmeleri ve mod kayıt sistemi
+- `tgame-zaman`: Kare süresi, toplam çalışma süresi ve kare sayacı
 
 ## İlk oyun
 
 ```rust
-use tgame::onsoz::{Oyun, OyunSonucu, Sahne};
+use tgame::onsoz::{Oyun, OyunAkisi, OyunSonucu, Sahne, Tus};
 
 fn main() -> OyunSonucu {
     Oyun::yeni("İlk Tgame Oyunum")
         .cozunurluk(800, 600)
         .mod_klasoru("modlar")
         .sahne_ekle(Sahne::yeni("Başlangıç"))
+        .her_kare(|girdi, zaman| {
+            if girdi.bu_kare_basildi_mi(Tus::Bosluk) {
+                println!(
+                    "Boşluk tuşuna {}. karede, {:.3} saniyede basıldı.",
+                    zaman.kare_sayisi(),
+                    zaman.toplam_saniye(),
+                );
+            }
+
+            if girdi.bu_kare_basildi_mi(Tus::Kacis) {
+                OyunAkisi::Kapat
+            } else {
+                OyunAkisi::DevamEt
+            }
+        })
         .calistir()
 }
 ```
 
-Bu örnek gerçek bir 800×600 işletim sistemi penceresi oluşturur, yüksek performanslı GPU bağdaştırıcısını seçer ve WGSL gölgelendiricisiyle renkli bir üçgen çizer. Pencere yeniden boyutlandırıldığında GPU yüzeyi güncellenir; yüzey kaybı ve geçersizleşme durumları kontrollü biçimde ele alınır.
+Bu örnek gerçek bir 800×600 işletim sistemi penceresi oluşturur, yüksek performanslı GPU bağdaştırıcısını seçer ve WGSL gölgelendiricisiyle renkli bir üçgen çizer. Fiziksel klavye olayları Türkçe `Tus` değerlerine dönüştürülür; her karede `Girdi` ve `Zaman` oyun koduna iletilir. Boşluk tuşu kare bilgisini yazdırır, Escape tuşu oyunu kontrollü biçimde kapatır.
 
 Çalıştırmak için:
 
