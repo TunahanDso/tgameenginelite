@@ -17,7 +17,8 @@ repository = "https://github.com/TunahanDso/tgameenginelite"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
+warnings = "deny"
 
 [workspace.lints.clippy]
-all = "warn"
-pedantic = "warn"
+all = "deny"
+pedantic = "deny"
