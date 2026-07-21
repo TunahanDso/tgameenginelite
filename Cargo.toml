@@ -7,6 +7,7 @@ members = [
     "crates/tgame-girdi",
     "crates/tgame-grafik",
     "crates/tgame-matematik",
+    "crates/tgame-macera",
     "crates/tgame-model",
     "crates/tgame-pencere",
     "crates/tgame-sahne",
