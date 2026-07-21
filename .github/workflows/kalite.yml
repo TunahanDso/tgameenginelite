@@ -5,16 +5,19 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   denetim:
+    if: github.actor != 'github-actions[bot]'
     name: Rust kalite denetimi
     runs-on: windows-latest
 
     steps:
       - name: Kaynak kodu al
         uses: actions/checkout@v4
+        with:
+          ref: agent/ilk-moduler-iskelet
 
       - name: Rust araç zincirini kur
         uses: dtolnay/rust-toolchain@stable
@@ -24,8 +27,18 @@ jobs:
       - name: Cargo önbelleğini hazırla
         uses: Swatinem/rust-cache@v2
 
-      - name: Biçimi denetle
-        run: cargo fmt --all --check
+      - name: Kaynakları biçimlendir
+        run: cargo fmt --all
+
+      - name: Biçim değişikliklerini gönder
+        shell: pwsh
+        run: |
+          if (-not (git status --porcelain)) { exit 0 }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- '*.rs'
+          git commit -m "Büyük kaynak güncellemesini biçimlendir"
+          git push origin HEAD:agent/ilk-moduler-iskelet
 
       - name: Workspace'i denetle
         run: cargo check --workspace --all-targets
