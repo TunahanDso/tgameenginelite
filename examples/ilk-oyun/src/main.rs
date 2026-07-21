@@ -1,7 +1,6 @@
 use tgame::onsoz::{
-    Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Girdi, Kamera3B, MeshKimligi, ModelVerisi,
-    Oyun, OyunAkisi, OyunHatasi, OyunSonucu, Renk, Sahne, Tus, Varlik, VarlikKimligi, Vektor3,
-    Zaman,
+    Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Girdi, Kamera3B, MeshKimligi, ModelVerisi, Oyun,
+    OyunAkisi, OyunHatasi, OyunSonucu, Renk, Sahne, Tus, Varlik, VarlikKimligi, Vektor3, Zaman,
 };
 
 const OYUNCU_HIZI: f32 = 4.8;
@@ -271,25 +270,21 @@ fn piramitleri_ekle(
         (Vektor3::yeni(3.2, -0.58, 2.8), Renk::YESIL),
     ];
     let goruntu_olcegi = Vektor3::yeni(0.65, 0.65, 0.65);
-    let carpismа_olcegi = Vektor3::yeni(1.3, 1.17, 1.3);
+    let carpisma_olcegi = Vektor3::yeni(1.3, 1.17, 1.3);
     let mut kimlikler = Vec::with_capacity(piramitler.len());
 
     for (konum, renk) in piramitler {
         let kimlik = dunya.varlik_ekle(
-            Varlik::mesh("glTF Piramit", mesh, renk).donusum3b(
-                Donusum3B::yeni()
-                    .konum(konum)
-                    .olcek(goruntu_olcegi),
-            ),
+            Varlik::mesh("glTF Piramit", mesh, renk)
+                .donusum3b(Donusum3B::yeni().konum(konum).olcek(goruntu_olcegi)),
         );
         kimlikler.push(kimlik);
 
         let engel = dunya.varlik_ekle(
-            Varlik::yeni("Piramit Çarpışması").donusum3b(
-                Donusum3B::yeni().konum(konum + Vektor3::YUKARI * 0.585),
-            ),
+            Varlik::yeni("Piramit Çarpışması")
+                .donusum3b(Donusum3B::yeni().konum(konum + Vektor3::YUKARI * 0.585)),
         );
-        fizik.govde_ekle(FizikGovdesi::statik_kup(engel, carpismа_olcegi));
+        fizik.govde_ekle(FizikGovdesi::statik_kup(engel, carpisma_olcegi));
     }
 
     kimlikler
@@ -334,8 +329,7 @@ fn sutunlari_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) {
     for (konum, renk, yukseklik) in sutunlar {
         let olcek = Vektor3::yeni(0.8, yukseklik, 0.8);
         let kimlik = dunya.varlik_ekle(
-            Varlik::kup("Sütun", renk)
-                .donusum3b(Donusum3B::yeni().konum(konum).olcek(olcek)),
+            Varlik::kup("Sütun", renk).donusum3b(Donusum3B::yeni().konum(konum).olcek(olcek)),
         );
         fizik.govde_ekle(FizikGovdesi::statik_kup(kimlik, olcek));
     }

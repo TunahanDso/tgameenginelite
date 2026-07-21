@@ -198,11 +198,7 @@ mod testler {
 
     #[test]
     fn gecersiz_mesh_reddedilir() {
-        let sonuc = MeshVerisi::yeni(
-            vec![Vektor3::SIFIR],
-            vec![Vektor3::YUKARI],
-            vec![0, 1, 2],
-        );
+        let sonuc = MeshVerisi::yeni(vec![Vektor3::SIFIR], vec![Vektor3::YUKARI], vec![0, 1, 2]);
 
         assert!(sonuc.is_err());
     }
