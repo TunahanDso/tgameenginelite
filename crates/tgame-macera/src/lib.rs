@@ -53,11 +53,26 @@ macro_rules! kimlik_turu {
 kimlik_turu!(EsyaKimligi, "Bir envanter eşyasının kalıcı kimliğidir.");
 kimlik_turu!(GorevKimligi, "Bir hikâye görevinin kalıcı kimliğidir.");
 kimlik_turu!(DiyalogKimligi, "Bir diyalog ağacının kalıcı kimliğidir.");
-kimlik_turu!(SahneKimligi, "Bir oyun bölümünün veya sahnesinin kalıcı kimliğidir.");
-kimlik_turu!(EtkilesimKimligi, "Dünyadaki bir etkileşim noktasının kalıcı kimliğidir.");
-kimlik_turu!(AlanKimligi, "Dünyadaki bir tetik alanının kalıcı kimliğidir.");
-kimlik_turu!(KuralKimligi, "Olay tabanlı bir oynanış kuralının kalıcı kimliğidir.");
-kimlik_turu!(KontrolNoktasiKimligi, "Bir yeniden doğuş veya kayıt noktasının kalıcı kimliğidir.");
+kimlik_turu!(
+    SahneKimligi,
+    "Bir oyun bölümünün veya sahnesinin kalıcı kimliğidir."
+);
+kimlik_turu!(
+    EtkilesimKimligi,
+    "Dünyadaki bir etkileşim noktasının kalıcı kimliğidir."
+);
+kimlik_turu!(
+    AlanKimligi,
+    "Dünyadaki bir tetik alanının kalıcı kimliğidir."
+);
+kimlik_turu!(
+    KuralKimligi,
+    "Olay tabanlı bir oynanış kuralının kalıcı kimliğidir."
+);
+kimlik_turu!(
+    KontrolNoktasiKimligi,
+    "Bir yeniden doğuş veya kayıt noktasının kalıcı kimliğidir."
+);
 
 include!("parcalar/durum.rs");
 include!("parcalar/olay_gorev.rs");

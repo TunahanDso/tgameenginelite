@@ -11,8 +11,7 @@ use tgame_sahne::Sahne;
 use tgame_varlik::Dunya;
 use tgame_zaman::Zaman;
 
-type MaceraKareGorevi =
-    Box<dyn FnMut(&Girdi, &Zaman, &mut Dunya, &mut Macera) -> OyunAkisi>;
+type MaceraKareGorevi = Box<dyn FnMut(&Girdi, &Zaman, &mut Dunya, &mut Macera) -> OyunAkisi>;
 
 /// Oyun geliştiricisinin doğrudan kullandığı ana motor yapısı.
 pub struct Oyun {
@@ -184,12 +183,11 @@ pub mod onsoz {
     pub use tgame_girdi::{FareHareketi, Girdi, Tus};
     pub use tgame_macera::{
         AlanKimligi, AlanTetikleyicisi, DiyalogDugumu, DiyalogGorunumu, DiyalogKimligi,
-        DiyalogSecenegi, DiyalogSecenegiGorunumu, DiyalogTanimi, Envanter, EsyaKimligi,
-        EsyaTanimi, EtkilesimGorunumu, EtkilesimKimligi, EtkilesimNoktasi, Eylem,
-        GorevAdimi, GorevAsamasi, GorevHedefi, GorevIlerlemesi, GorevKimligi, GorevTanimi,
-        KayitYoneticisi, KontrolNoktasi, KontrolNoktasiKimligi, Kosul, KuralKimligi, KutuAlan,
-        Macera, MaceraRaporu, OlayFiltresi, OlayKurali, OyunDurumu, OyunOlayi, SahneGecisi,
-        SahneKimligi, SahneTanimi, Tekrarlama,
+        DiyalogSecenegi, DiyalogSecenegiGorunumu, DiyalogTanimi, Envanter, EsyaKimligi, EsyaTanimi,
+        EtkilesimGorunumu, EtkilesimKimligi, EtkilesimNoktasi, Eylem, GorevAdimi, GorevAsamasi,
+        GorevHedefi, GorevIlerlemesi, GorevKimligi, GorevTanimi, KayitYoneticisi, KontrolNoktasi,
+        KontrolNoktasiKimligi, Kosul, KuralKimligi, KutuAlan, Macera, MaceraRaporu, OlayFiltresi,
+        OlayKurali, OyunDurumu, OyunOlayi, SahneGecisi, SahneKimligi, SahneTanimi, Tekrarlama,
     };
     pub use tgame_matematik::{Matris4, Renk, Vektor2, Vektor3};
     pub use tgame_mod::{ModBilgisi, ModYoneticisi};
