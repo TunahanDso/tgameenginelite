@@ -1,4 +1,4 @@
-//! Tgame Engine Lite Türkçe klavye girdi katmanı.
+//! Tgame Engine Lite Türkçe klavye ve fare girdi katmanı.
 
 use std::collections::HashSet;
 
@@ -133,12 +133,30 @@ pub enum Tus {
     F12,
 }
 
-/// Bir oyun karesindeki klavye durumunu saklar.
+/// Bir kare boyunca biriken göreli fare hareketini taşır.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct FareHareketi {
+    /// Sağa doğru pozitif yatay hareket.
+    pub x: f32,
+    /// Aşağı doğru pozitif dikey hareket.
+    pub y: f32,
+}
+
+impl FareHareketi {
+    /// Yeni göreli fare hareketi oluşturur.
+    #[must_use]
+    pub const fn yeni(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
+
+/// Bir oyun karesindeki klavye ve fare durumunu saklar.
 #[derive(Debug, Clone, Default)]
 pub struct Girdi {
     basili_tuslar: HashSet<Tus>,
     bu_kare_basildi: HashSet<Tus>,
     bu_kare_birakildi: HashSet<Tus>,
+    fare_hareketi: FareHareketi,
 }
 
 impl Girdi {
@@ -166,6 +184,12 @@ impl Girdi {
         self.bu_kare_birakildi.contains(&tus)
     }
 
+    /// Bu kare boyunca biriken göreli fare hareketini döndürür.
+    #[must_use]
+    pub const fn fare_hareketi(&self) -> FareHareketi {
+        self.fare_hareketi
+    }
+
     /// Motorun fiziksel tuş durumunu işlemesini sağlar.
     #[doc(hidden)]
     pub fn tus_durumunu_guncelle(&mut self, tus: Tus, basili: bool) {
@@ -178,17 +202,25 @@ impl Girdi {
         }
     }
 
-    /// Kareye özel geçici tuş durumlarını temizler.
+    /// Motorun göreli fare hareketini kare boyunca biriktirmesini sağlar.
+    #[doc(hidden)]
+    pub fn fare_hareketini_ekle(&mut self, x: f32, y: f32) {
+        self.fare_hareketi.x += x;
+        self.fare_hareketi.y += y;
+    }
+
+    /// Kareye özel geçici girdi durumlarını temizler.
     #[doc(hidden)]
     pub fn kareyi_bitir(&mut self) {
         self.bu_kare_basildi.clear();
         self.bu_kare_birakildi.clear();
+        self.fare_hareketi = FareHareketi::default();
     }
 }
 
 #[cfg(test)]
 mod testler {
-    use super::{Girdi, Tus};
+    use super::{FareHareketi, Girdi, Tus};
 
     #[test]
     fn basma_tekrari_yalnizca_bir_kez_kaydedilir() {
@@ -213,6 +245,17 @@ mod testler {
         assert!(!girdi.basili_mi(Tus::Bosluk));
         assert!(!girdi.bu_kare_basildi_mi(Tus::Bosluk));
         assert!(girdi.bu_kare_birakildi_mi(Tus::Bosluk));
+    }
+
+    #[test]
+    fn fare_hareketi_kare_boyunca_birikir_ve_temizlenir() {
+        let mut girdi = Girdi::yeni();
+        girdi.fare_hareketini_ekle(2.0, -1.0);
+        girdi.fare_hareketini_ekle(0.5, 3.0);
+
+        assert_eq!(girdi.fare_hareketi(), FareHareketi::yeni(2.5, 2.0));
+        girdi.kareyi_bitir();
+        assert_eq!(girdi.fare_hareketi(), FareHareketi::default());
     }
 
     #[test]
