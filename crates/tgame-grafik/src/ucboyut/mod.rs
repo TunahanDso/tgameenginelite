@@ -113,7 +113,7 @@ impl UcBoyutGrafik {
             malzeme_yerlesimi,
             kamera_tamponu,
             kamera_grubu,
-            beyaz_doku: beyaz_doku,
+            beyaz_doku,
             kup_malzeme,
             kup_mesh,
             kayitli_dokular: Vec::new(),
@@ -433,7 +433,8 @@ mod testler {
     #[test]
     fn uc_boyut_ornegi_model_matrisi_ve_renkten_olusur() {
         assert_eq!(ORNEK_ADIMI, 80);
-        assert!(KUP_SINIR_YARICAPI > 0.86);
+        let yaricap = std::hint::black_box(KUP_SINIR_YARICAPI);
+        assert!(yaricap > 0.86);
     }
 
     #[test]
