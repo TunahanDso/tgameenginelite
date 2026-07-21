@@ -25,6 +25,9 @@ fn esya_olayi_cok_adimli_gorevi_ilerletir() {
     macera.gorev_baslat(&gorev).expect("Görev başlamalı.");
     macera.esya_ekle(&anahtar, 1).expect("Eşya eklenmeli.");
 
-    assert_eq!(macera.gorev_asamasi(&gorev), GorevAsamasi::Tamamlandi);
+    assert_eq!(
+        macera.gorev_asamasi(&gorev),
+        GorevAsamasi::Tamamlandi
+    );
     assert_eq!(macera.envanter().miktar(&anahtar), 1);
 }
