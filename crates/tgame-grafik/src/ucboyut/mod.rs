@@ -63,7 +63,7 @@ pub(super) struct UcBoyutGrafik {
     malzeme_yerlesimi: wgpu::BindGroupLayout,
     kamera_tamponu: wgpu::Buffer,
     kamera_grubu: wgpu::BindGroup,
-    _beyaz_doku: GpuDoku,
+    beyaz_doku: GpuDoku,
     kup_malzeme: GpuMalzeme,
     kup_mesh: GpuMesh,
     kayitli_dokular: Vec<GpuDoku>,
@@ -113,7 +113,7 @@ impl UcBoyutGrafik {
             malzeme_yerlesimi,
             kamera_tamponu,
             kamera_grubu,
-            _beyaz_doku: beyaz_doku,
+            beyaz_doku: beyaz_doku,
             kup_malzeme,
             kup_mesh,
             kayitli_dokular: Vec::new(),
@@ -171,7 +171,7 @@ impl UcBoyutGrafik {
                     )
                 })?
             } else {
-                &self._beyaz_doku
+                &self.beyaz_doku
             };
             self.kayitli_malzemeler
                 .push(GpuMalzeme::yeni(aygit, &self.malzeme_yerlesimi, doku));

@@ -903,7 +903,7 @@ mod testler {
     #[test]
     fn kaynak_matrisi_kullanici_donusumunun_altinda_kalir() {
         let varlik = Varlik::yeni("Node")
-            .donusum3b(Donusum3B::yeni().konum(Vektor3::new(2.0, 0.0, 0.0)))
+            .donusum3b(Donusum3B::yeni().konum(Vektor3::yeni(2.0, 0.0, 0.0)))
             .kaynak_matrisi(Matris4::oteleme(Vektor3::yeni(0.0, 3.0, 0.0)));
         let konum = varlik.model_matrisi().noktayi_donustur(Vektor3::SIFIR);
 
