@@ -55,14 +55,15 @@ pub(super) fn cizim_hatti_olustur(
     aygit: &wgpu::Device,
     yuzey_bicimi: wgpu::TextureFormat,
     kamera_yerlesimi: &wgpu::BindGroupLayout,
+    malzeme_yerlesimi: &wgpu::BindGroupLayout,
 ) -> wgpu::RenderPipeline {
     let golgelendirici = aygit.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("Tgame 3B Genel Mesh Gölgelendiricisi"),
+        label: Some("Tgame 3B Dokulu Mesh Gölgelendiricisi"),
         source: wgpu::ShaderSource::Wgsl(MESH_GOLGELENDIRICISI.into()),
     });
     let cizim_hatti_yerlesimi = aygit.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("Tgame 3B Genel Mesh Çizim Hattı Yerleşimi"),
-        bind_group_layouts: &[Some(kamera_yerlesimi)],
+        label: Some("Tgame 3B Dokulu Mesh Çizim Hattı Yerleşimi"),
+        bind_group_layouts: &[Some(kamera_yerlesimi), Some(malzeme_yerlesimi)],
         immediate_size: 0,
     });
     let renk_hedefleri = [Some(wgpu::ColorTargetState {
@@ -82,7 +83,7 @@ pub(super) fn cizim_hatti_olustur(
     };
 
     aygit.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Tgame Derinlikli Toplu Genel Mesh Çizim Hattı"),
+        label: Some("Tgame Derinlikli Toplu Dokulu Mesh Çizim Hattı"),
         layout: Some(&cizim_hatti_yerlesimi),
         vertex: wgpu::VertexState {
             module: &golgelendirici,
@@ -120,8 +121,9 @@ mod testler {
     use super::MESH_GOLGELENDIRICISI;
 
     #[test]
-    fn mesh_golgelendiricisi_perspektif_ve_aydinlatma_icerir() {
+    fn mesh_golgelendiricisi_doku_ve_aydinlatma_icerir() {
         assert!(MESH_GOLGELENDIRICISI.contains("gorunum_izdusum"));
         assert!(MESH_GOLGELENDIRICISI.contains("isik_yonu"));
+        assert!(MESH_GOLGELENDIRICISI.contains("textureSample"));
     }
 }
