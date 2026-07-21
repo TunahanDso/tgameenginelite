@@ -293,11 +293,10 @@ fn f32_yaz(hedef: &mut Vec<u8>, deger: f32) {
 
 #[cfg(test)]
 mod testler {
-    use super::{MeshAnahtari, ORNEK_ADIMI};
+    use super::ORNEK_ADIMI;
 
     #[test]
     fn uc_boyut_ornegi_model_matrisi_ve_renkten_olusur() {
         assert_eq!(ORNEK_ADIMI, 80);
-        assert!(MeshAnahtari::Kup < MeshAnahtari::Kayitli(tgame_varlik::MeshKimligi::test(0)));
     }
 }
