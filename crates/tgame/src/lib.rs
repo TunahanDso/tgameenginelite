@@ -132,7 +132,10 @@ pub mod onsoz {
     pub use tgame_girdi::{FareHareketi, Girdi, Tus};
     pub use tgame_matematik::{Matris4, Renk, Vektor2, Vektor3};
     pub use tgame_mod::{ModBilgisi, ModYoneticisi};
-    pub use tgame_model::{MeshVerisi, ModelVerisi};
+    pub use tgame_model::{
+        DokuFiltresi, DokuSarmasi, DokuVerisi, MalzemeVerisi, MeshVerisi, ModelVerisi,
+        OrnekleyiciVerisi,
+    };
     pub use tgame_pencere::OyunAkisi;
     pub use tgame_sahne::Sahne;
     pub use tgame_varlik::{
