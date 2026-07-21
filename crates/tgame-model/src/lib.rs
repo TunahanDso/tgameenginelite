@@ -1,6 +1,6 @@
 //! Tgame Engine Lite genel mesh, malzeme, doku ve glTF/GLB yükleme katmanı.
 
-use std::path::Path;
+use std::{collections::BTreeMap, path::Path};
 
 use gltf::{
     image::{Data as GltfResmi, Format as GltfResimBicimi},
@@ -8,7 +8,7 @@ use gltf::{
     texture::{MagFilter, MinFilter, WrappingMode},
 };
 use tgame_cekirdek::{OyunHatasi, OyunSonucu};
-use tgame_matematik::{Renk, Vektor2, Vektor3};
+use tgame_matematik::{Matris4, Renk, Vektor2, Vektor3};
 
 /// Doku örneklemesinde kullanılacak filtre türü.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -152,6 +152,12 @@ impl MalzemeVerisi {
     pub const fn temel_dokusu(&self) -> Option<&DokuVerisi> {
         self.temel_doku.as_ref()
     }
+
+    /// Malzemeyi renk ve isteğe bağlı doku parçalarına ayırır.
+    #[must_use]
+    pub fn parcalara_ayir(self) -> (Renk, Option<DokuVerisi>) {
+        (self.temel_renk, self.temel_doku)
+    }
 }
 
 impl Default for MalzemeVerisi {
@@ -160,14 +166,51 @@ impl Default for MalzemeVerisi {
     }
 }
 
+/// Yerel mesh sınırlarını muhafazakâr biçimde saran küredir.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct SinirKuresi {
+    merkez: Vektor3,
+    yaricap: f32,
+}
+
+impl SinirKuresi {
+    /// Merkez ve yarıçaptan sınır küresi oluşturur.
+    #[must_use]
+    pub const fn yeni(merkez: Vektor3, yaricap: f32) -> Self {
+        Self { merkez, yaricap }
+    }
+
+    /// Yerel küre merkezini döndürür.
+    #[must_use]
+    pub const fn merkez(self) -> Vektor3 {
+        self.merkez
+    }
+
+    /// Yerel küre yarıçapını döndürür.
+    #[must_use]
+    pub const fn yaricap(self) -> f32 {
+        self.yaricap
+    }
+
+    /// Küreyi model matrisiyle dünya uzayına taşır.
+    #[must_use]
+    pub fn donustur(self, matris: Matris4) -> Self {
+        Self::yeni(
+            matris.noktayi_donustur(self.merkez),
+            self.yaricap * matris.en_buyuk_olcek(),
+        )
+    }
+}
+
 /// GPU'ya aktarılmaya hazır tek bir üçgen mesh'in ham verisidir.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MeshVerisi {
     konumlar: Vec<Vektor3>,
     normaller: Vec<Vektor3>,
     uvler: Vec<Vektor2>,
     indeksler: Vec<u32>,
     malzeme: MalzemeVerisi,
+    sinir_kuresi: SinirKuresi,
 }
 
 impl MeshVerisi {
@@ -197,8 +240,9 @@ impl MeshVerisi {
     ///
     /// # Errors
     ///
-    /// Mesh boşsa, tepe niteliklerinin sayıları eşleşmezse, indeks sayısı üçün
-    /// katı değilse veya indekslerden biri tepe sınırını aşarsa [`OyunHatasi`] döndürür.
+    /// Mesh boşsa, tepe niteliklerinin sayıları eşleşmezse, değerlerden biri sonlu
+    /// değilse, indeks sayısı üçün katı değilse veya bir indeks tepe sınırını aşarsa
+    /// [`OyunHatasi`] döndürür.
     pub fn yeni_malzemeli(
         konumlar: Vec<Vektor3>,
         normaller: Vec<Vektor3>,
@@ -214,6 +258,26 @@ impl MeshVerisi {
                 "Mesh konum, normal ve UV sayıları birbiriyle eşleşmiyor.",
             ));
         }
+        if konumlar.iter().any(|konum| !konum.sonlu_mu())
+            || normaller.iter().any(|normal| !normal.sonlu_mu())
+            || uvler
+                .iter()
+                .any(|uv| !uv.x.is_finite() || !uv.y.is_finite())
+        {
+            return Err(OyunHatasi::yeni(
+                "Mesh konum, normal veya UV verisi sonlu olmayan değer içeriyor.",
+            ));
+        }
+        let renk = malzeme.temel_renk();
+        if !renk.kirmizi.is_finite()
+            || !renk.yesil.is_finite()
+            || !renk.mavi.is_finite()
+            || !renk.alfa.is_finite()
+        {
+            return Err(OyunHatasi::yeni(
+                "Mesh malzemesi sonlu olmayan renk değeri içeriyor.",
+            ));
+        }
         if indeksler.is_empty() || !indeksler.len().is_multiple_of(3) {
             return Err(OyunHatasi::yeni(
                 "Mesh indeks sayısı üçgenler için sıfırdan büyük ve üçün katı olmalı.",
@@ -223,8 +287,11 @@ impl MeshVerisi {
         let tepe_sayisi = u32::try_from(konumlar.len())
             .map_err(|_| OyunHatasi::yeni("Mesh desteklenenden fazla tepe içeriyor."))?;
         if indeksler.iter().any(|indeks| *indeks >= tepe_sayisi) {
-            return Err(OyunHatasi::yeni("Mesh geçersiz bir tepe indeksi içeriyor."));
+            return Err(OyunHatasi::yeni(
+                "Mesh geçersiz bir tepe indeksi içeriyor.",
+            ));
         }
+        let sinir_kuresi = sinir_kuresini_hesapla(&konumlar);
 
         Ok(Self {
             konumlar,
@@ -232,6 +299,7 @@ impl MeshVerisi {
             uvler,
             indeksler,
             malzeme,
+            sinir_kuresi,
         })
     }
 
@@ -265,6 +333,12 @@ impl MeshVerisi {
         &self.malzeme
     }
 
+    /// Mesh'in yerel sınır küresini döndürür.
+    #[must_use]
+    pub const fn sinir_kuresi(&self) -> SinirKuresi {
+        self.sinir_kuresi
+    }
+
     /// Mesh'i geometri ve malzeme parçalarına ayırır.
     #[must_use]
     pub fn geometri_ve_malzemeye_ayir(mut self) -> (Self, MalzemeVerisi) {
@@ -273,10 +347,41 @@ impl MeshVerisi {
     }
 }
 
-/// Bir glTF/GLB dosyasından alınmış bir veya daha fazla üçgen mesh'i taşır.
+/// glTF sahnesindeki bir mesh örneğini ve birikmiş dünya matrisini taşır.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ModelOrnegi {
+    mesh_indeksi: usize,
+    dunya_matrisi: Matris4,
+}
+
+impl ModelOrnegi {
+    /// Mesh sıra numarası ve dünya matrisiyle örnek oluşturur.
+    #[must_use]
+    pub const fn yeni(mesh_indeksi: usize, dunya_matrisi: Matris4) -> Self {
+        Self {
+            mesh_indeksi,
+            dunya_matrisi,
+        }
+    }
+
+    /// Model içindeki mesh sıra numarasını döndürür.
+    #[must_use]
+    pub const fn mesh_indeksi(self) -> usize {
+        self.mesh_indeksi
+    }
+
+    /// glTF node hiyerarşisinden birikmiş dünya matrisini döndürür.
+    #[must_use]
+    pub const fn dunya_matrisi(self) -> Matris4 {
+        self.dunya_matrisi
+    }
+}
+
+/// Bir glTF/GLB dosyasından alınmış mesh'leri ve sahne örneklerini taşır.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ModelVerisi {
     meshler: Vec<MeshVerisi>,
+    ornekler: Vec<ModelOrnegi>,
 }
 
 impl ModelVerisi {
@@ -284,7 +389,8 @@ impl ModelVerisi {
     ///
     /// Üçgen olmayan primitive'ler atlanır. Normal verisi bulunmayan mesh'ler için
     /// indeksli üçgenlerden yumuşatılmış tepe normalleri hesaplanır. `TEXCOORD_0`,
-    /// PBR taban renk çarpanı, taban renk dokusu ve sampler ayarları içe aktarılır.
+    /// PBR taban renk çarpanı, taban renk dokusu, sampler ayarları ve varsayılan
+    /// sahnenin node hiyerarşisi içe aktarılır.
     ///
     /// # Errors
     ///
@@ -299,9 +405,10 @@ impl ModelVerisi {
             ))
         })?;
         let mut meshler = Vec::new();
+        let mut primitive_eslemeleri = BTreeMap::<(usize, usize), usize>::new();
 
         for mesh in belge.meshes() {
-            for primitive in mesh.primitives() {
+            for (primitive_sirasi, primitive) in mesh.primitives().enumerate() {
                 if primitive.mode() != Mode::Triangles {
                     continue;
                 }
@@ -340,10 +447,12 @@ impl ModelVerisi {
                     },
                 );
                 let malzeme = gltf_malzemesini_cevir(&primitive.material(), &resimler)?;
+                let yeni_indeks = meshler.len();
 
                 meshler.push(MeshVerisi::yeni_malzemeli(
                     konumlar, normaller, uvler, indeksler, malzeme,
                 )?);
+                primitive_eslemeleri.insert((mesh.index(), primitive_sirasi), yeni_indeks);
             }
         }
 
@@ -353,7 +462,24 @@ impl ModelVerisi {
             ));
         }
 
-        Ok(Self { meshler })
+        let mut ornekler = Vec::new();
+        if let Some(sahne) = belge.default_scene().or_else(|| belge.scenes().next()) {
+            for dugum in sahne.nodes() {
+                dugum_orneklerini_topla(
+                    dugum,
+                    Matris4::BIRIM,
+                    &primitive_eslemeleri,
+                    &mut ornekler,
+                )?;
+            }
+        }
+        if ornekler.is_empty() {
+            ornekler.extend(
+                (0..meshler.len()).map(|indeks| ModelOrnegi::yeni(indeks, Matris4::BIRIM)),
+            );
+        }
+
+        Ok(Self { meshler, ornekler })
     }
 
     /// Modeldeki mesh'leri döndürür.
@@ -362,11 +488,69 @@ impl ModelVerisi {
         &self.meshler
     }
 
+    /// Varsayılan sahnedeki mesh örneklerini döndürür.
+    #[must_use]
+    pub fn ornekler(&self) -> &[ModelOrnegi] {
+        &self.ornekler
+    }
+
     /// Modelin sahip olduğu mesh'leri tüketerek döndürür.
     #[must_use]
     pub fn meshlere_ayir(self) -> Vec<MeshVerisi> {
         self.meshler
     }
+
+    /// Modeli mesh ve sahne örneği listelerine ayırır.
+    #[must_use]
+    pub fn parcalara_ayir(self) -> (Vec<MeshVerisi>, Vec<ModelOrnegi>) {
+        (self.meshler, self.ornekler)
+    }
+}
+
+fn dugum_orneklerini_topla(
+    dugum: gltf::Node<'_>,
+    ebeveyn_matrisi: Matris4,
+    primitive_eslemeleri: &BTreeMap<(usize, usize), usize>,
+    hedef: &mut Vec<ModelOrnegi>,
+) -> OyunSonucu {
+    let dunya_matrisi = ebeveyn_matrisi * gltf_matrisini_cevir(dugum.transform().matrix());
+    if !dunya_matrisi.sonlu_mu() {
+        return Err(OyunHatasi::yeni(
+            "glTF node dönüşümü sonlu olmayan matris değeri içeriyor.",
+        ));
+    }
+    if let Some(mesh) = dugum.mesh() {
+        for (primitive_sirasi, _) in mesh.primitives().enumerate() {
+            if let Some(mesh_indeksi) = primitive_eslemeleri.get(&(mesh.index(), primitive_sirasi)) {
+                hedef.push(ModelOrnegi::yeni(*mesh_indeksi, dunya_matrisi));
+            }
+        }
+    }
+    for cocuk in dugum.children() {
+        dugum_orneklerini_topla(cocuk, dunya_matrisi, primitive_eslemeleri, hedef)?;
+    }
+    Ok(())
+}
+
+const fn gltf_matrisini_cevir(matris: [[f32; 4]; 4]) -> Matris4 {
+    Matris4::yeni([
+        matris[0][0],
+        matris[0][1],
+        matris[0][2],
+        matris[0][3],
+        matris[1][0],
+        matris[1][1],
+        matris[1][2],
+        matris[1][3],
+        matris[2][0],
+        matris[2][1],
+        matris[2][2],
+        matris[2][3],
+        matris[3][0],
+        matris[3][1],
+        matris[3][2],
+        matris[3][3],
+    ])
 }
 
 fn gltf_malzemesini_cevir(
@@ -470,6 +654,26 @@ fn gltf_resmini_cevir(resim: &GltfResmi, ornekleyici: OrnekleyiciVerisi) -> Oyun
     DokuVerisi::yeni_rgba8(resim.width, resim.height, rgba8, ornekleyici)
 }
 
+fn sinir_kuresini_hesapla(konumlar: &[Vektor3]) -> SinirKuresi {
+    let ilk = konumlar[0];
+    let mut en_kucuk = ilk;
+    let mut en_buyuk = ilk;
+    for konum in &konumlar[1..] {
+        en_kucuk.x = en_kucuk.x.min(konum.x);
+        en_kucuk.y = en_kucuk.y.min(konum.y);
+        en_kucuk.z = en_kucuk.z.min(konum.z);
+        en_buyuk.x = en_buyuk.x.max(konum.x);
+        en_buyuk.y = en_buyuk.y.max(konum.y);
+        en_buyuk.z = en_buyuk.z.max(konum.z);
+    }
+    let merkez = (en_kucuk + en_buyuk) * 0.5;
+    let yaricap = konumlar
+        .iter()
+        .map(|konum| (*konum - merkez).uzunluk())
+        .fold(0.0_f32, f32::max);
+    SinirKuresi::yeni(merkez, yaricap)
+}
+
 fn normalleri_hesapla(konumlar: &[Vektor3], indeksler: &[u32]) -> OyunSonucu<Vec<Vektor3>> {
     if indeksler.is_empty() || !indeksler.len().is_multiple_of(3) {
         return Err(OyunHatasi::yeni(
@@ -500,14 +704,16 @@ fn indeks_usize(indeks: u32, tepe_sayisi: usize) -> OyunSonucu<usize> {
     let indeks = usize::try_from(indeks)
         .map_err(|_| OyunHatasi::yeni("Mesh indeksi bu platformda temsil edilemiyor."))?;
     if indeks >= tepe_sayisi {
-        return Err(OyunHatasi::yeni("Mesh indeksi tepe sınırını aşıyor."));
+        return Err(OyunHatasi::yeni(
+            "Mesh indeksi tepe sınırını aşıyor.",
+        ));
     }
     Ok(indeks)
 }
 
 #[cfg(test)]
 mod testler {
-    use tgame_matematik::{Renk, Vektor2, Vektor3};
+    use tgame_matematik::{Matris4, Renk, Vektor2, Vektor3};
 
     use super::{
         DokuFiltresi, DokuSarmasi, DokuVerisi, MalzemeVerisi, MeshVerisi, OrnekleyiciVerisi,
@@ -515,7 +721,11 @@ mod testler {
 
     #[test]
     fn gecersiz_mesh_reddedilir() {
-        let sonuc = MeshVerisi::yeni(vec![Vektor3::SIFIR], vec![Vektor3::YUKARI], vec![0, 1, 2]);
+        let sonuc = MeshVerisi::yeni(
+            vec![Vektor3::SIFIR],
+            vec![Vektor3::YUKARI],
+            vec![0, 1, 2],
+        );
 
         assert!(sonuc.is_err());
     }
@@ -534,20 +744,52 @@ mod testler {
             },
         )
         .expect("Geçerli bir texel kabul edilmeli.");
-        let sonuc = MeshVerisi::yeni_malzemeli(
+        let mesh = MeshVerisi::yeni_malzemeli(
             vec![Vektor3::SIFIR, Vektor3::SAG, Vektor3::YUKARI],
             vec![Vektor3::ILERI; 3],
             vec![Vektor2::SIFIR, Vektor2::SAG, Vektor2::YUKARI],
             vec![0, 1, 2],
             MalzemeVerisi::yeni(Renk::BEYAZ).temel_doku(doku),
-        );
+        )
+        .expect("Dokulu üçgen geçerli olmalı.");
 
-        assert!(sonuc.is_ok());
+        assert_eq!(mesh.sinir_kuresi().merkez(), Vektor3::yeni(0.5, 0.5, 0.0));
+        assert!(mesh.sinir_kuresi().yaricap() > 0.7);
+    }
+
+    #[test]
+    fn sinir_kuresi_model_matrisiyle_buyur() {
+        let mesh = MeshVerisi::yeni(
+            vec![Vektor3::SIFIR, Vektor3::SAG, Vektor3::YUKARI],
+            vec![Vektor3::ILERI; 3],
+            vec![0, 1, 2],
+        )
+        .expect("Test mesh'i geçerli olmalı.");
+        let dunya = mesh.sinir_kuresi().donustur(Matris4::model(
+            Vektor3::yeni(2.0, 3.0, 4.0),
+            Vektor3::SIFIR,
+            Vektor3::yeni(2.0, 2.0, 2.0),
+        ));
+
+        assert_eq!(dunya.merkez(), Vektor3::yeni(3.0, 4.0, 4.0));
+        assert!(dunya.yaricap() > 1.4);
     }
 
     #[test]
     fn gecersiz_doku_bayt_sayisi_reddedilir() {
-        let sonuc = DokuVerisi::yeni_rgba8(2, 2, vec![255; 15], OrnekleyiciVerisi::default());
+        let sonuc =
+            DokuVerisi::yeni_rgba8(2, 2, vec![255; 15], OrnekleyiciVerisi::default());
+
+        assert!(sonuc.is_err());
+    }
+
+    #[test]
+    fn sonlu_olmayan_mesh_reddedilir() {
+        let sonuc = MeshVerisi::yeni(
+            vec![Vektor3::SIFIR, Vektor3::yeni(f32::NAN, 0.0, 0.0), Vektor3::YUKARI],
+            vec![Vektor3::ILERI; 3],
+            vec![0, 1, 2],
+        );
 
         assert!(sonuc.is_err());
     }
