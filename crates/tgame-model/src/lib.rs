@@ -223,9 +223,7 @@ impl MeshVerisi {
         let tepe_sayisi = u32::try_from(konumlar.len())
             .map_err(|_| OyunHatasi::yeni("Mesh desteklenenden fazla tepe içeriyor."))?;
         if indeksler.iter().any(|indeks| *indeks >= tepe_sayisi) {
-            return Err(OyunHatasi::yeni(
-                "Mesh geçersiz bir tepe indeksi içeriyor.",
-            ));
+            return Err(OyunHatasi::yeni("Mesh geçersiz bir tepe indeksi içeriyor."));
         }
 
         Ok(Self {
@@ -397,9 +395,7 @@ fn gltf_malzemesini_cevir(
     Ok(sonuc)
 }
 
-fn gltf_ornekleyicisini_cevir(
-    ornekleyici: &gltf::texture::Sampler<'_>,
-) -> OrnekleyiciVerisi {
+fn gltf_ornekleyicisini_cevir(ornekleyici: &gltf::texture::Sampler<'_>) -> OrnekleyiciVerisi {
     OrnekleyiciVerisi {
         buyutme: match ornekleyici.mag_filter() {
             Some(MagFilter::Nearest) => DokuFiltresi::EnYakin,
@@ -429,10 +425,7 @@ const fn gltf_sarmasini_cevir(sarma: WrappingMode) -> DokuSarmasi {
     }
 }
 
-fn gltf_resmini_cevir(
-    resim: &GltfResmi,
-    ornekleyici: OrnekleyiciVerisi,
-) -> OyunSonucu<DokuVerisi> {
+fn gltf_resmini_cevir(resim: &GltfResmi, ornekleyici: OrnekleyiciVerisi) -> OyunSonucu<DokuVerisi> {
     let piksel_sayisi = resim
         .width
         .checked_mul(resim.height)
@@ -507,9 +500,7 @@ fn indeks_usize(indeks: u32, tepe_sayisi: usize) -> OyunSonucu<usize> {
     let indeks = usize::try_from(indeks)
         .map_err(|_| OyunHatasi::yeni("Mesh indeksi bu platformda temsil edilemiyor."))?;
     if indeks >= tepe_sayisi {
-        return Err(OyunHatasi::yeni(
-            "Mesh indeksi tepe sınırını aşıyor.",
-        ));
+        return Err(OyunHatasi::yeni("Mesh indeksi tepe sınırını aşıyor."));
     }
     Ok(indeks)
 }
@@ -524,11 +515,7 @@ mod testler {
 
     #[test]
     fn gecersiz_mesh_reddedilir() {
-        let sonuc = MeshVerisi::yeni(
-            vec![Vektor3::SIFIR],
-            vec![Vektor3::YUKARI],
-            vec![0, 1, 2],
-        );
+        let sonuc = MeshVerisi::yeni(vec![Vektor3::SIFIR], vec![Vektor3::YUKARI], vec![0, 1, 2]);
 
         assert!(sonuc.is_err());
     }
@@ -560,8 +547,7 @@ mod testler {
 
     #[test]
     fn gecersiz_doku_bayt_sayisi_reddedilir() {
-        let sonuc =
-            DokuVerisi::yeni_rgba8(2, 2, vec![255; 15], OrnekleyiciVerisi::default());
+        let sonuc = DokuVerisi::yeni_rgba8(2, 2, vec![255; 15], OrnekleyiciVerisi::default());
 
         assert!(sonuc.is_err());
     }
