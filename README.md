@@ -108,10 +108,10 @@ dunya.varlik_ekle(Varlik::mesh_malzemeli(
 
 `Dunya::malzeme_ekle` aynı temel renk ve aynı `DokuKimligi` bileşimini tek kayıt olarak tutar.
 
-Başlangıç raporu artık ayrı kaynak sayılarını gösterir:
+Başlangıç raporu artık ayrı kaynak sayılarını gösterir. Güncel `ilk-oyun` stres sahnesi şu özeti üretir:
 
 ```text
-... 390 varlık — 1 mesh — 2 malzeme — 1 doku ...
+... 401 varlık — 1 mesh — 2 malzeme — 1 doku ...
 ```
 
 ## Sınır küresi ve frustum culling
