@@ -1,7 +1,6 @@
 use tgame_cekirdek::{OyunHatasi, OyunSonucu};
-use tgame_model::{MalzemeVerisi, MeshVerisi};
+use tgame_model::MeshVerisi;
 
-use super::gpu_malzeme::GpuMalzeme;
 use super::mesh::{KUP_INDEKS_SAYISI, indeks_baytlari, tepe_baytlari};
 
 pub(super) struct GpuMesh {
@@ -9,15 +8,10 @@ pub(super) struct GpuMesh {
     pub(super) indeks: wgpu::Buffer,
     pub(super) indeks_sayisi: u32,
     pub(super) indeks_bicimi: wgpu::IndexFormat,
-    pub(super) malzeme: GpuMalzeme,
 }
 
 impl GpuMesh {
-    pub(super) fn kup(
-        aygit: &wgpu::Device,
-        kuyruk: &wgpu::Queue,
-        malzeme_yerlesimi: &wgpu::BindGroupLayout,
-    ) -> Self {
+    pub(super) fn kup(aygit: &wgpu::Device, kuyruk: &wgpu::Queue) -> Self {
         let tepe_baytlari = tepe_baytlari();
         let indeks_baytlari = indeks_baytlari();
         Self {
@@ -37,14 +31,12 @@ impl GpuMesh {
             ),
             indeks_sayisi: KUP_INDEKS_SAYISI,
             indeks_bicimi: wgpu::IndexFormat::Uint16,
-            malzeme: GpuMalzeme::yeni(aygit, kuyruk, malzeme_yerlesimi, &MalzemeVerisi::default()),
         }
     }
 
     pub(super) fn kayitli(
         aygit: &wgpu::Device,
         kuyruk: &wgpu::Queue,
-        malzeme_yerlesimi: &wgpu::BindGroupLayout,
         mesh: &MeshVerisi,
     ) -> OyunSonucu<Self> {
         let mut tepe_baytlari = Vec::with_capacity(mesh.konumlar().len().saturating_mul(32));
@@ -85,7 +77,6 @@ impl GpuMesh {
             ),
             indeks_sayisi,
             indeks_bicimi: wgpu::IndexFormat::Uint32,
-            malzeme: GpuMalzeme::yeni(aygit, kuyruk, malzeme_yerlesimi, mesh.malzeme()),
         })
     }
 }
