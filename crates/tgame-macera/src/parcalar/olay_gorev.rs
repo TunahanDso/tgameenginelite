@@ -81,13 +81,13 @@ impl OlayFiltresi {
     pub fn eslesir(&self, olay: &OyunOlayi) -> bool {
         match (self, olay) {
             (Self::Herhangi, _) => true,
-            (Self::Ozel(sol), OyunOlayi::Ozel { ad: sag, .. }) => sol == sag,
+            (Self::Ozel(sol), OyunOlayi::Ozel { ad: sag, .. })
+            | (Self::DusmanYenildi(sol), OyunOlayi::DusmanYenildi { dusman: sag }) => sol == sag,
             (Self::EsyaEklendi(sol), OyunOlayi::EsyaEklendi { esya: sag, .. })
             | (Self::EsyaCikarildi(sol), OyunOlayi::EsyaCikarildi { esya: sag, .. }) => sol == sag,
             (Self::Etkilesim(sol), OyunOlayi::Etkilesim { etkilesim: sag }) => sol == sag,
             (Self::AlanaGirdi(sol), OyunOlayi::AlanaGirdi { alan: sag })
             | (Self::AlandanCikti(sol), OyunOlayi::AlandanCikti { alan: sag }) => sol == sag,
-            (Self::DusmanYenildi(sol), OyunOlayi::DusmanYenildi { dusman: sag }) => sol == sag,
             (
                 Self::DiyalogSecildi {
                     diyalog: sol_diyalog,
@@ -176,135 +176,5 @@ impl GorevHedefi {
     #[must_use]
     pub const fn gereken(&self) -> u32 {
         self.gereken
-    }
-}
-
-/// Bir görevin aynı anda izlenen hedef grubudur.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GorevAdimi {
-    baslik: String,
-    aciklama: String,
-    hedefler: Vec<GorevHedefi>,
-}
-
-impl GorevAdimi {
-    /// Yeni bir görev adımı oluşturur.
-    #[must_use]
-    pub fn yeni(baslik: impl Into<String>, hedefler: Vec<GorevHedefi>) -> Self {
-        Self {
-            baslik: baslik.into(),
-            aciklama: String::new(),
-            hedefler,
-        }
-    }
-
-    /// Adımın ayrıntılı açıklamasını değiştirir.
-    #[must_use]
-    pub fn aciklama(mut self, aciklama: impl Into<String>) -> Self {
-        self.aciklama = aciklama.into();
-        self
-    }
-
-    /// Adım başlığını döndürür.
-    #[must_use]
-    pub fn baslik(&self) -> &str {
-        &self.baslik
-    }
-
-    /// Adım açıklamasını döndürür.
-    #[must_use]
-    pub fn aciklamasi(&self) -> &str {
-        &self.aciklama
-    }
-
-    /// Adım hedeflerini döndürür.
-    #[must_use]
-    pub fn hedefler(&self) -> &[GorevHedefi] {
-        &self.hedefler
-    }
-}
-
-/// Birden fazla adımdan oluşan görev tanımıdır.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GorevTanimi {
-    kimlik: GorevKimligi,
-    baslik: String,
-    aciklama: String,
-    adimlar: Vec<GorevAdimi>,
-}
-
-impl GorevTanimi {
-    /// Yeni bir görev tanımı oluşturur.
-    #[must_use]
-    pub fn yeni(
-        kimlik: impl Into<GorevKimligi>,
-        baslik: impl Into<String>,
-        adimlar: Vec<GorevAdimi>,
-    ) -> Self {
-        Self {
-            kimlik: kimlik.into(),
-            baslik: baslik.into(),
-            aciklama: String::new(),
-            adimlar,
-        }
-    }
-
-    /// Görev açıklamasını değiştirir.
-    #[must_use]
-    pub fn aciklama(mut self, aciklama: impl Into<String>) -> Self {
-        self.aciklama = aciklama.into();
-        self
-    }
-
-    /// Görev kimliğini döndürür.
-    #[must_use]
-    pub const fn kimlik(&self) -> &GorevKimligi {
-        &self.kimlik
-    }
-
-    /// Görev başlığını döndürür.
-    #[must_use]
-    pub fn baslik(&self) -> &str {
-        &self.baslik
-    }
-
-    /// Görev açıklamasını döndürür.
-    #[must_use]
-    pub fn aciklamasi(&self) -> &str {
-        &self.aciklama
-    }
-
-    /// Görev adımlarını döndürür.
-    #[must_use]
-    pub fn adimlar(&self) -> &[GorevAdimi] {
-        &self.adimlar
-    }
-}
-
-/// Bir görevin kayıt dosyasına yazılan çalışma zamanı ilerlemesidir.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct GorevIlerlemesi {
-    asama: GorevAsamasi,
-    adim: usize,
-    hedefler: Vec<u32>,
-}
-
-impl GorevIlerlemesi {
-    /// Görevin çalışma zamanı aşamasını döndürür.
-    #[must_use]
-    pub const fn asama(&self) -> GorevAsamasi {
-        self.asama
-    }
-
-    /// Etkin görev adımının sıra numarasını döndürür.
-    #[must_use]
-    pub const fn adim(&self) -> usize {
-        self.adim
-    }
-
-    /// Etkin adımdaki hedef ilerlemelerini döndürür.
-    #[must_use]
-    pub fn hedefler(&self) -> &[u32] {
-        &self.hedefler
     }
 }
