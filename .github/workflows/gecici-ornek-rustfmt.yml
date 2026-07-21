@@ -1,0 +1,32 @@
+name: Gecici Ornek Rustfmt
+
+on:
+  push:
+    branches:
+      - agent/ilk-moduler-iskelet
+
+permissions:
+  contents: write
+
+jobs:
+  bicim:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/ilk-moduler-iskelet
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Rust kaynaklarini bicimlendir
+        shell: pwsh
+        run: |
+          cargo fmt --all
+          if (-not (git status --porcelain)) { exit 0 }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- '*.rs'
+          git commit -m "Ornek macera oyununu rustfmt ile bicimlendir"
+          git push origin HEAD:agent/ilk-moduler-iskelet
