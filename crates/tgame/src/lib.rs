@@ -91,13 +91,14 @@ impl Oyun {
         let kare_gorevi = kare_gorevi.unwrap_or_else(|| Box::new(|_, _, _| OyunAkisi::DevamEt));
 
         println!(
-            "{} başlatılıyor — {}×{} — {:?} — {} sahne — {} varlık — {} yüklü mod — mod klasörü: {}",
+            "{} başlatılıyor — {}×{} — {:?} — {} sahne — {} varlık — {} mesh — {} yüklü mod — mod klasörü: {}",
             ayarlar.baslik,
             cozunurluk.genislik,
             cozunurluk.yukseklik,
             dunya.boyut(),
             sahneler.len(),
             dunya.varliklar().len(),
+            dunya.meshler().len(),
             mod_yoneticisi.yuklu_modlar().len(),
             ayarlar.mod_klasoru,
         );
@@ -135,8 +136,8 @@ pub mod onsoz {
     pub use tgame_pencere::OyunAkisi;
     pub use tgame_sahne::Sahne;
     pub use tgame_varlik::{
-        Donusum2B, Donusum3B, Dunya, DunyaBoyutu, Gorunum2B, Gorunum3B, Kamera2B, Kamera3B, Varlik,
-        VarlikKimligi,
+        Donusum2B, Donusum3B, Dunya, DunyaBoyutu, Gorunum2B, Gorunum3B, Kamera2B, Kamera3B,
+        MeshKimligi, Varlik, VarlikKimligi,
     };
     pub use tgame_zaman::Zaman;
 }
@@ -159,6 +160,7 @@ mod testler {
         assert!(oyun.sahneler.is_empty());
         assert!(oyun.mod_yoneticisi.yuklu_modlar().is_empty());
         assert!(oyun.dunya.varliklar().is_empty());
+        assert!(oyun.dunya.meshler().is_empty());
         assert!(oyun.kare_gorevi.is_none());
     }
 
