@@ -1,0 +1,35 @@
+name: Geçici Büyük Biçim
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  bicimlendir:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: windows-latest
+    steps:
+      - name: Branch'i al
+        uses: actions/checkout@v4
+        with:
+          ref: agent/ilk-moduler-iskelet
+      - name: Rustfmt kur
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Kaynakları biçimlendir
+        run: cargo fmt --all
+      - name: Biçim commitini gönder
+        shell: pwsh
+        run: |
+          if (-not (git status --porcelain -- '*.rs')) {
+            Write-Host "Biçim değişikliği yok."
+            exit 0
+          }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- '*.rs'
+          git commit -m "Fizik model ve fare kaynaklarını biçimlendir"
+          git push origin HEAD:agent/ilk-moduler-iskelet
