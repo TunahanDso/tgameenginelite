@@ -1,51 +1,104 @@
-# İlk Oyun: 3B Fizik ve Dokulu glTF Dünyası
+# İlk Oyun: 3B Kaynak Sistemi ve Culling Stres Sahnesi
 
-Bu örnek, Tgame Engine Lite'ın Türkçe API'siyle perspektif kameralı, derinlik tamponlu, sabit fizik adımlı ve haricî glTF mesh'lerini gerçek dokularıyla GPU'da çizen oynanabilir bir 3B dünya oluşturur.
+Bu örnek, Tgame Engine Lite'ın Türkçe API'siyle fizik, dokulu glTF, bağımsız malzemeler, node hiyerarşisi, kaynak tekilleştirme, instance batching ve frustum culling kullanan oynanabilir bir 3B dünya oluşturur.
 
 ## Sahne
 
 - 121 basık küpten oluşan dama desenli zemin
 - Farklı yükseklik ve renklerde altı çarpışmalı sütun
 - Yerçekimine tabi sarı dinamik oyuncu küpü
-- Statik çarpışma gövdesine sahip dönen büyük kırmızı merkez küpü
-- `assets/piramit.gltf` dosyasından yüklenen sekiz dokulu piramit
-- Piramitlerin paylaştığı tek `MeshKimligi`, GPU mesh'i, sRGB doku ve sampler
-- Oyuncuyu fareyle kontrol edilen yörüngeden takip eden `Kamera3B`
-- Mesh kimliğine göre instance batching
+- Statik çarpışma gövdesine sahip dönen merkez küpü
+- `assets/piramit.gltf` dosyasından yüklenen sekiz görünür piramit
+- Aynı `MeshKimligi`ni kullanan dokulu ve turkuaz malzemeli piramitler
+- Kamera görüşünün çok dışında bulunan 256 ek piramit
+- Mesh + malzeme anahtarına göre instance batching
+- Sınır küresi tabanlı frustum culling
 - `Depth32Float` derinlik tamponu ve temel yönsel aydınlatma
 
-Yerleşik küpler `u16`, glTF piramit `u32` indeks kullanır. Küpler otomatik 1×1 beyaz doku, piramitler glTF içindeki 2×2 renk dokusunu kullanır. İki kaynak aynı dokulu 3B shader ve pipeline içinde ayrı instance gruplarıyla çizilir.
+256 stres varlığı dünyada gerçekten kayıtlıdır. Ancak kamera frustum'ının dışında oldukları için GPU instance tamponuna yazılmaz ve draw çağrılarına katılmaz.
 
 ## Fizik
 
 - Simülasyon yaklaşık 60 Hz sabit adımla çalışır.
-- Gerçek render süresi birikerek gereken fizik alt adımlarına çevrilir.
+- Render süresi birikerek sabit fizik alt adımlarına çevrilir.
 - Uzun kareler 250 ms ile, tek karedeki fizik adımları sekiz ile sınırlandırılır.
 - Statik ve dinamik küpler `Aabb3` hacimleriyle çarpışır.
 - X, Y ve Z hareketleri ayrı çözüldüğü için oyuncu duvarların boyunca kayabilir.
 - Oyuncu yalnızca destekleyen bir yüzey üzerindeyken zıplayabilir.
-- Piramitlerin görsel mesh'i ile basit statik AABB çarpışma varlığı birbirinden ayrıdır.
+- Piramit görselleri ile basit statik AABB çarpışma varlıkları ayrıdır.
 
-## Model, UV ve malzeme yükleme
+## glTF geometri ve node hiyerarşisi
 
-Piramit glTF dosyası normal verisi taşımaz; `tgame-model`, üçgen indekslerinden tepe normallerini hesaplar. Dosya ayrıca şunları içerir:
+Piramit glTF dosyası normal verisi taşımaz. `tgame-model`, üçgen indekslerinden tepe normallerini hesaplar.
 
-- Beş adet `TEXCOORD_0` UV koordinatı
+Dosyada ayrıca şunlar vardır:
+
+- Beş `TEXCOORD_0` UV koordinatı
 - Gömülü 2×2 PNG taban renk dokusu
-- Doğrusal büyütme/küçültme filtresi
-- U ve V eksenlerinde tekrar sarma davranışı
+- Doğrusal büyütme ve küçültme filtresi
+- U/V tekrar sarma davranışı
 - PBR `baseColorFactor`
+- Ötelenmiş kök node
+- Ötelenmiş, döndürülmüş ve 0.8 ölçekli çocuk mesh node'u
 
-Yükleyici resmi RGBA8 veriye dönüştürür. Grafik katmanı `Rgba8UnormSrgb` GPU dokusu, texture view, sampler ve material bind group oluşturur. Sekiz piramit aynı kaynakları paylaşır ve tek `draw_indexed` grubunda sunulur.
+Yükleyici ebeveyn ve çocuk matrislerini biriktirir. Testte mesh yerel orijininin dünya konumu `(1.25, 1.5, -0.75)` ve birikmiş en büyük ölçeğin `0.8` olduğu doğrulanır.
 
-CI testi dosyayı gerçek yolundan açar ve şunları doğrular:
+## Bağımsız kaynak kayıtları
+
+Model dünyaya eklenirken:
+
+- geometri `MeshKimligi`
+- glTF malzemesi `MalzemeKimligi`
+- gömülü PNG `DokuKimligi`
+
+olarak ayrı kayıt edilir.
+
+Eşit doku ve malzemeler tekrar eklenirse mevcut kimlikleri kullanılır. GPU tarafında texture, sampler, material bind group ve mesh tamponları da ayrı yaşam döngülerine sahiptir.
+
+## Aynı mesh, farklı malzeme
+
+Görünür piramitlerin bir bölümü glTF'nin dokulu varsayılan malzemesini kullanır. Her üçüncü piramit ise bağımsız turkuaz malzeme ile çizilir:
+
+```rust
+Varlik::mesh_malzemeli(
+    "Alternatif Malzemeli Piramit",
+    piramit_mesh,
+    turkuaz_malzeme,
+    renk,
+)
+```
+
+Bu işlem geometriyi çoğaltmaz. Aynı vertex ve indeks tamponları farklı material bind group'larla kullanılır.
+
+## Frustum culling
+
+Her mesh otomatik hesaplanan bir `SinirKuresi` taşır. Çizim hazırlığında küre varlığın nihai model matrisiyle dünya uzayına dönüştürülür.
+
+Kamera:
+
+- yakın düzlem
+- uzak düzlem
+- yatay görüş sınırı
+- dikey görüş sınırı
+
+üzerinden küreyi sınar. Görünmeyen varlıklar instance tamponuna ulaşmadan elenir.
+
+## CI doğrulaması
+
+Gerçek `assets/piramit.gltf` dosyası diskten açılır ve şunlar doğrulanır:
 
 - 5 tepe
 - 5 hesaplanmış normal
 - 5 UV
 - 18 indeks
+- geçerli mesh sınır küresi
 - 2×2 boyutunda 16 bayt RGBA8 doku
-- Doğrusal filtre ve tekrar sarma ayarları
+- doğrusal filtre ve tekrar sarma ayarları
+- 1 sahne örneği
+- doğru ebeveyn–çocuk dünya matrisi
+- `Dunya::model_sahnesi_ekle` sonucu 1 mesh, 1 malzeme ve 1 doku kaydı
+
+Ayrıca dünya katmanı testleri eşit doku/malzeme tekilleştirmesini ve kamera dışındaki kürenin elenmesini sınar.
 
 ## Kontroller
 
@@ -56,7 +109,7 @@ CI testi dosyayı gerçek yolundan açar ve şunları doğrular:
 - `Enter`: oyuncunun konumunu, hızını, zeminde olma durumunu ve kareyi yazdırır
 - `Escape`: oyunu kontrollü kapatır
 
-Pencere odaklandığında imleç kilitlenir ve gizlenir; odak kaybolduğunda serbest bırakılır. Hareket yönü birim uzunluğa getirildiği için çapraz hareket hız kazandırmaz.
+Pencere odaklandığında imleç kilitlenir ve gizlenir; odak kaybolduğunda serbest bırakılır. Çapraz hareket birimlenir ve hız kazandırmaz.
 
 ## Çalıştırma
 
@@ -64,4 +117,4 @@ Pencere odaklandığında imleç kilitlenir ve gizlenir; odak kaybolduğunda ser
 cargo run -p ilk-oyun
 ```
 
-Beklenen görüntü koyu arka plan üzerinde hacimli zemin, renkli sütunlar, küpler ve dokulu dönen glTF piramitleridir. Oyuncu başlangıçta zemine düşer, engellere çarpar ve `Boşluk` ile zıplar.
+Beklenen görüntü koyu arka plan üzerinde zemin, sütunlar, küpler, dokulu piramitler ve turkuaz alternatif malzemeli piramitlerdir. Uzakta oluşturulan 256 stres piramidi kamera dışında olduğu için görünmez ve çizim yükü oluşturmaz.
