@@ -1,3 +1,4 @@
+mod gpu_malzeme;
 mod gpu_mesh;
 mod mesh;
 mod pipeline;
@@ -8,9 +9,11 @@ use tgame_cekirdek::{Cozunurluk, OyunHatasi, OyunSonucu};
 use tgame_matematik::Renk;
 use tgame_varlik::{Dunya, Gorunum3B, MeshKimligi, Varlik};
 
+use gpu_malzeme::malzeme_yerlesimi_olustur;
 use gpu_mesh::GpuMesh;
 use pipeline::{
-    cizim_hatti_olustur, derinlik_gorunumu_olustur, kamera_yerlesimi_olustur, ornek_tamponu_olustur,
+    cizim_hatti_olustur, derinlik_gorunumu_olustur, kamera_yerlesimi_olustur,
+    ornek_tamponu_olustur,
 };
 
 pub(super) const DERINLIK_BICIMI: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -42,6 +45,7 @@ struct CizimGrubu {
 
 pub(super) struct UcBoyutGrafik {
     kamera_yerlesimi: wgpu::BindGroupLayout,
+    malzeme_yerlesimi: wgpu::BindGroupLayout,
     kamera_tamponu: wgpu::Buffer,
     kamera_grubu: wgpu::BindGroup,
     kup_mesh: GpuMesh,
@@ -62,6 +66,7 @@ impl UcBoyutGrafik {
         boyut: Cozunurluk,
     ) -> Self {
         let kamera_yerlesimi = kamera_yerlesimi_olustur(aygit);
+        let malzeme_yerlesimi = malzeme_yerlesimi_olustur(aygit);
         let kamera_tamponu = aygit.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Tgame 3B Kamera Uniform Tamponu"),
             size: KAMERA_TAMPON_BOYUTU,
@@ -77,14 +82,21 @@ impl UcBoyutGrafik {
             }],
         });
         let ornek_tamponu = ornek_tamponu_olustur(aygit, BASLANGIC_ORNEK_TAMPON_BOYUTU);
-        let cizim_hatti = cizim_hatti_olustur(aygit, yuzey_bicimi, &kamera_yerlesimi);
+        let cizim_hatti = cizim_hatti_olustur(
+            aygit,
+            yuzey_bicimi,
+            &kamera_yerlesimi,
+            &malzeme_yerlesimi,
+        );
         let derinlik_gorunumu = derinlik_gorunumu_olustur(aygit, boyut);
+        let kup_mesh = GpuMesh::kup(aygit, kuyruk, &malzeme_yerlesimi);
 
         Self {
             kamera_yerlesimi,
+            malzeme_yerlesimi,
             kamera_tamponu,
             kamera_grubu,
-            kup_mesh: GpuMesh::kup(aygit, kuyruk),
+            kup_mesh,
             kayitli_meshler: Vec::new(),
             ornek_tamponu,
             ornek_tampon_kapasitesi: BASLANGIC_ORNEK_TAMPON_BOYUTU,
@@ -121,36 +133,38 @@ impl UcBoyutGrafik {
         }
 
         for mesh in &dunya.meshler()[self.kayitli_meshler.len()..] {
-            self.kayitli_meshler
-                .push(GpuMesh::kayitli(aygit, kuyruk, mesh)?);
+            self.kayitli_meshler.push(GpuMesh::kayitli(
+                aygit,
+                kuyruk,
+                &self.malzeme_yerlesimi,
+                mesh,
+            )?);
         }
         Ok(())
     }
 
     fn ornekleri_hazirla(&mut self, dunya: &Dunya) -> OyunSonucu {
-        let mut kumeler = BTreeMap::<MeshAnahtari, Vec<&Varlik>>::new();
+        let mut kumeler = BTreeMap::<MeshAnahtari, Vec<(&Varlik, Renk)>>::new();
         for varlik in dunya.varliklar().iter().filter(|varlik| varlik.etkin_mi()) {
-            let Some((mesh, _renk)) = gorunum_bilgisi(varlik) else {
+            let Some((mesh, renk)) = gorunum_bilgisi(varlik, dunya)? else {
                 continue;
             };
             if let MeshAnahtari::Kayitli(kimlik) = mesh {
                 if kimlik.deger() >= self.kayitli_meshler.len() {
                     return Err(OyunHatasi::yeni(
-                        "3B varlık, dünya kayıt defterinde bulunmayan bir mesh kullanıyor.",
+                        "3B varlık, GPU kayıt defterinde bulunmayan bir mesh kullanıyor.",
                     ));
                 }
             }
-            kumeler.entry(mesh).or_default().push(varlik);
+            kumeler.entry(mesh).or_default().push((varlik, renk));
         }
 
         self.ornek_baytlari.clear();
         self.cizim_gruplari.clear();
         for (mesh, varliklar) in kumeler {
             let baslangic = ornek_sayisini_cevir(self.ornek_baytlari.len() / ORNEK_ADIMI)?;
-            for varlik in &varliklar {
-                let (_, renk) = gorunum_bilgisi(varlik)
-                    .expect("Çizim kümesine yalnızca görünür 3B varlıklar eklenir.");
-                ornegi_yaz(&mut self.ornek_baytlari, varlik, renk);
+            for (varlik, renk) in &varliklar {
+                ornegi_yaz(&mut self.ornek_baytlari, varlik, *renk);
             }
             let sayi = ornek_sayisini_cevir(varliklar.len())?;
             let son = baslangic.checked_add(sayi).ok_or_else(|| {
@@ -164,7 +178,11 @@ impl UcBoyutGrafik {
         Ok(())
     }
 
-    fn ornek_tamponunu_yaz(&mut self, aygit: &wgpu::Device, kuyruk: &wgpu::Queue) -> OyunSonucu {
+    fn ornek_tamponunu_yaz(
+        &mut self,
+        aygit: &wgpu::Device,
+        kuyruk: &wgpu::Queue,
+    ) -> OyunSonucu {
         let gerekli_boyut = u64::try_from(self.ornek_baytlari.len())
             .map_err(|_| OyunHatasi::yeni("GPU 3B örnek verisi desteklenen boyutu aştı."))?;
         if gerekli_boyut > self.ornek_tampon_kapasitesi {
@@ -218,7 +236,7 @@ impl UcBoyutGrafik {
             stencil_ops: None,
         };
         let mut cizim_gecisi = komut_kaydedici.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Tgame 3B Genel Mesh Çizim Geçişi"),
+            label: Some("Tgame 3B Dokulu Mesh Çizim Geçişi"),
             color_attachments: &renk_eklentileri,
             depth_stencil_attachment: Some(derinlik_eklentisi),
             timestamp_writes: None,
@@ -231,6 +249,7 @@ impl UcBoyutGrafik {
 
         for grup in &self.cizim_gruplari {
             let mesh = self.gpu_mesh(grup.mesh);
+            cizim_gecisi.set_bind_group(1, &mesh.malzeme.grup, &[]);
             cizim_gecisi.set_vertex_buffer(0, mesh.tepe.slice(..));
             cizim_gecisi.set_index_buffer(mesh.indeks.slice(..), mesh.indeks_bicimi);
             cizim_gecisi.draw_indexed(0..mesh.indeks_sayisi, 0, grup.ornekler.clone());
@@ -253,15 +272,38 @@ impl UcBoyutGrafik {
         aygit: &wgpu::Device,
         yuzey_bicimi: wgpu::TextureFormat,
     ) {
-        self.cizim_hatti = cizim_hatti_olustur(aygit, yuzey_bicimi, &self.kamera_yerlesimi);
+        self.cizim_hatti = cizim_hatti_olustur(
+            aygit,
+            yuzey_bicimi,
+            &self.kamera_yerlesimi,
+            &self.malzeme_yerlesimi,
+        );
     }
 }
 
-fn gorunum_bilgisi(varlik: &Varlik) -> Option<(MeshAnahtari, Renk)> {
-    match varlik.gorunumu3b()? {
-        Gorunum3B::Kup { renk } => Some((MeshAnahtari::Kup, renk)),
-        Gorunum3B::Mesh { mesh, renk } => Some((MeshAnahtari::Kayitli(mesh), renk)),
+fn gorunum_bilgisi(varlik: &Varlik, dunya: &Dunya) -> OyunSonucu<Option<(MeshAnahtari, Renk)>> {
+    match varlik.gorunumu3b() {
+        Some(Gorunum3B::Kup { renk }) => Ok(Some((MeshAnahtari::Kup, renk))),
+        Some(Gorunum3B::Mesh { mesh, renk }) => {
+            let kaynak = dunya.mesh(mesh).ok_or_else(|| {
+                OyunHatasi::yeni("3B varlık, dünya kayıt defterinde bulunmayan bir mesh kullanıyor.")
+            })?;
+            Ok(Some((
+                MeshAnahtari::Kayitli(mesh),
+                renkleri_carp(renk, kaynak.malzeme().temel_renk()),
+            )))
+        }
+        None => Ok(None),
     }
+}
+
+const fn renkleri_carp(sol: Renk, sag: Renk) -> Renk {
+    Renk::yeni(
+        sol.kirmizi * sag.kirmizi,
+        sol.yesil * sag.yesil,
+        sol.mavi * sag.mavi,
+        sol.alfa * sag.alfa,
+    )
 }
 
 fn ornegi_yaz(hedef: &mut Vec<u8>, varlik: &Varlik, renk: Renk) {
@@ -288,10 +330,25 @@ fn f32_yaz(hedef: &mut Vec<u8>, deger: f32) {
 
 #[cfg(test)]
 mod testler {
-    use super::ORNEK_ADIMI;
+    use tgame_matematik::Renk;
+
+    use super::{ORNEK_ADIMI, renkleri_carp};
 
     #[test]
     fn uc_boyut_ornegi_model_matrisi_ve_renkten_olusur() {
         assert_eq!(ORNEK_ADIMI, 80);
+    }
+
+    #[test]
+    fn varlik_ve_malzeme_renkleri_carpilir() {
+        let renk = renkleri_carp(
+            Renk::yeni(0.5, 1.0, 0.25, 0.8),
+            Renk::yeni(0.4, 0.5, 1.0, 0.5),
+        );
+
+        assert!((renk.kirmizi - 0.2).abs() < 0.000_01);
+        assert!((renk.yesil - 0.5).abs() < 0.000_01);
+        assert!((renk.mavi - 0.25).abs() < 0.000_01);
+        assert!((renk.alfa - 0.4).abs() < 0.000_01);
     }
 }
