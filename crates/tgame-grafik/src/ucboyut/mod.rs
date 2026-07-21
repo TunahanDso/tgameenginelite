@@ -1,13 +1,17 @@
+mod gpu_mesh;
 mod mesh;
 mod pipeline;
 
-use tgame_cekirdek::{Cozunurluk, OyunHatasi, OyunSonucu};
-use tgame_varlik::{Dunya, Gorunum3B};
+use std::{collections::BTreeMap, ops::Range};
 
-use mesh::KUP_INDEKS_SAYISI;
+use tgame_cekirdek::{Cozunurluk, OyunHatasi, OyunSonucu};
+use tgame_matematik::Renk;
+use tgame_varlik::{Dunya, Gorunum3B, MeshKimligi, Varlik};
+
+use gpu_mesh::GpuMesh;
 use pipeline::{
     cizim_hatti_olustur, derinlik_gorunumu_olustur, kamera_yerlesimi_olustur,
-    mesh_tamponlari_olustur, ornek_tamponu_olustur,
+    ornek_tamponu_olustur,
 };
 
 pub(super) const DERINLIK_BICIMI: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -25,15 +29,28 @@ pub(super) const ORNEK_NITELIKLERI: [wgpu::VertexAttribute; 5] = wgpu::vertex_at
     6 => Float32x4
 ];
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum MeshAnahtari {
+    Kup,
+    Kayitli(MeshKimligi),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CizimGrubu {
+    mesh: MeshAnahtari,
+    ornekler: Range<u32>,
+}
+
 pub(super) struct UcBoyutGrafik {
     kamera_yerlesimi: wgpu::BindGroupLayout,
     kamera_tamponu: wgpu::Buffer,
     kamera_grubu: wgpu::BindGroup,
-    tepe_tamponu: wgpu::Buffer,
-    indeks_tamponu: wgpu::Buffer,
+    kup_mesh: GpuMesh,
+    kayitli_meshler: Vec<GpuMesh>,
     ornek_tamponu: wgpu::Buffer,
     ornek_tampon_kapasitesi: u64,
     ornek_baytlari: Vec<u8>,
+    cizim_gruplari: Vec<CizimGrubu>,
     cizim_hatti: wgpu::RenderPipeline,
     derinlik_gorunumu: wgpu::TextureView,
 }
@@ -60,7 +77,6 @@ impl UcBoyutGrafik {
                 resource: kamera_tamponu.as_entire_binding(),
             }],
         });
-        let mesh_tamponlari = mesh_tamponlari_olustur(aygit, kuyruk);
         let ornek_tamponu = ornek_tamponu_olustur(aygit, BASLANGIC_ORNEK_TAMPON_BOYUTU);
         let cizim_hatti = cizim_hatti_olustur(aygit, yuzey_bicimi, &kamera_yerlesimi);
         let derinlik_gorunumu = derinlik_gorunumu_olustur(aygit, boyut);
@@ -69,11 +85,12 @@ impl UcBoyutGrafik {
             kamera_yerlesimi,
             kamera_tamponu,
             kamera_grubu,
-            tepe_tamponu: mesh_tamponlari.tepe,
-            indeks_tamponu: mesh_tamponlari.indeks,
+            kup_mesh: GpuMesh::kup(aygit, kuyruk),
+            kayitli_meshler: Vec::new(),
             ornek_tamponu,
             ornek_tampon_kapasitesi: BASLANGIC_ORNEK_TAMPON_BOYUTU,
             ornek_baytlari: Vec::with_capacity(BASLANGIC_ORNEK_BAYT_KAPASITESI),
+            cizim_gruplari: Vec::new(),
             cizim_hatti,
             derinlik_gorunumu,
         }
@@ -86,22 +103,73 @@ impl UcBoyutGrafik {
         dunya: &Dunya,
         genislik: u32,
         yukseklik: u32,
-    ) -> OyunSonucu<u32> {
-        self.ornek_baytlari.clear();
+    ) -> OyunSonucu {
+        self.meshleri_esitle(aygit, kuyruk, dunya)?;
+        self.ornekleri_hazirla(dunya)?;
+        self.ornek_tamponunu_yaz(aygit, kuyruk)?;
+        self.kamerayi_yaz(kuyruk, dunya, genislik, yukseklik);
+        Ok(())
+    }
 
-        for varlik in dunya.varliklar().iter().filter(|varlik| varlik.etkin_mi()) {
-            let Some(Gorunum3B::Kup { renk }) = varlik.gorunumu3b() else {
-                continue;
-            };
-            for deger in varlik.donusumu3b().model_matrisi().degerler() {
-                f32_yaz(&mut self.ornek_baytlari, deger);
-            }
-            f32_yaz(&mut self.ornek_baytlari, renk.kirmizi);
-            f32_yaz(&mut self.ornek_baytlari, renk.yesil);
-            f32_yaz(&mut self.ornek_baytlari, renk.mavi);
-            f32_yaz(&mut self.ornek_baytlari, renk.alfa);
+    fn meshleri_esitle(
+        &mut self,
+        aygit: &wgpu::Device,
+        kuyruk: &wgpu::Queue,
+        dunya: &Dunya,
+    ) -> OyunSonucu {
+        if self.kayitli_meshler.len() > dunya.meshler().len() {
+            self.kayitli_meshler.clear();
         }
 
+        for mesh in &dunya.meshler()[self.kayitli_meshler.len()..] {
+            self.kayitli_meshler
+                .push(GpuMesh::kayitli(aygit, kuyruk, mesh)?);
+        }
+        Ok(())
+    }
+
+    fn ornekleri_hazirla(&mut self, dunya: &Dunya) -> OyunSonucu {
+        let mut kumeler = BTreeMap::<MeshAnahtari, Vec<&Varlik>>::new();
+        for varlik in dunya.varliklar().iter().filter(|varlik| varlik.etkin_mi()) {
+            let Some((mesh, _renk)) = gorunum_bilgisi(varlik) else {
+                continue;
+            };
+            if let MeshAnahtari::Kayitli(kimlik) = mesh {
+                if kimlik.deger() >= self.kayitli_meshler.len() {
+                    return Err(OyunHatasi::yeni(
+                        "3B varlık, dünya kayıt defterinde bulunmayan bir mesh kullanıyor.",
+                    ));
+                }
+            }
+            kumeler.entry(mesh).or_default().push(varlik);
+        }
+
+        self.ornek_baytlari.clear();
+        self.cizim_gruplari.clear();
+        for (mesh, varliklar) in kumeler {
+            let baslangic = ornek_sayisini_cevir(self.ornek_baytlari.len() / ORNEK_ADIMI)?;
+            for varlik in &varliklar {
+                let (_, renk) = gorunum_bilgisi(varlik)
+                    .expect("Çizim kümesine yalnızca görünür 3B varlıklar eklenir.");
+                ornegi_yaz(&mut self.ornek_baytlari, varlik, renk);
+            }
+            let sayi = ornek_sayisini_cevir(varliklar.len())?;
+            let son = baslangic.checked_add(sayi).ok_or_else(|| {
+                OyunHatasi::yeni("3B çizim grubunun örnek aralığı desteklenen sınırı aştı.")
+            })?;
+            self.cizim_gruplari.push(CizimGrubu {
+                mesh,
+                ornekler: baslangic..son,
+            });
+        }
+        Ok(())
+    }
+
+    fn ornek_tamponunu_yaz(
+        &mut self,
+        aygit: &wgpu::Device,
+        kuyruk: &wgpu::Queue,
+    ) -> OyunSonucu {
         let gerekli_boyut = u64::try_from(self.ornek_baytlari.len())
             .map_err(|_| OyunHatasi::yeni("GPU 3B örnek verisi desteklenen boyutu aştı."))?;
         if gerekli_boyut > self.ornek_tampon_kapasitesi {
@@ -114,7 +182,10 @@ impl UcBoyutGrafik {
         if !self.ornek_baytlari.is_empty() {
             kuyruk.write_buffer(&self.ornek_tamponu, 0, &self.ornek_baytlari);
         }
+        Ok(())
+    }
 
+    fn kamerayi_yaz(&self, kuyruk: &wgpu::Queue, dunya: &Dunya, genislik: u32, yukseklik: u32) {
         let en_boy_orani = piksel_f32(genislik) / piksel_f32(yukseklik);
         let kamera_matrisi = dunya.kamera3b().gorunum_izdusum(en_boy_orani);
         let mut kamera_baytlari = Vec::with_capacity(KAMERA_BAYT_KAPASITESI);
@@ -122,17 +193,12 @@ impl UcBoyutGrafik {
             f32_yaz(&mut kamera_baytlari, deger);
         }
         kuyruk.write_buffer(&self.kamera_tamponu, 0, &kamera_baytlari);
-
-        let ornek_sayisi = self.ornek_baytlari.len() / ORNEK_ADIMI;
-        u32::try_from(ornek_sayisi)
-            .map_err(|_| OyunHatasi::yeni("Tek karede desteklenenden fazla 3B varlık çiziliyor."))
     }
 
     pub(super) fn kaydet(
         &self,
         komut_kaydedici: &mut wgpu::CommandEncoder,
         gorunum: &wgpu::TextureView,
-        ornek_sayisi: u32,
     ) {
         let renk_eklentileri = [Some(wgpu::RenderPassColorAttachment {
             view: gorunum,
@@ -157,7 +223,7 @@ impl UcBoyutGrafik {
             stencil_ops: None,
         };
         let mut cizim_gecisi = komut_kaydedici.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Tgame 3B Çizim Geçişi"),
+            label: Some("Tgame 3B Genel Mesh Çizim Geçişi"),
             color_attachments: &renk_eklentileri,
             depth_stencil_attachment: Some(derinlik_eklentisi),
             timestamp_writes: None,
@@ -166,10 +232,21 @@ impl UcBoyutGrafik {
         });
         cizim_gecisi.set_pipeline(&self.cizim_hatti);
         cizim_gecisi.set_bind_group(0, &self.kamera_grubu, &[]);
-        cizim_gecisi.set_vertex_buffer(0, self.tepe_tamponu.slice(..));
         cizim_gecisi.set_vertex_buffer(1, self.ornek_tamponu.slice(..));
-        cizim_gecisi.set_index_buffer(self.indeks_tamponu.slice(..), wgpu::IndexFormat::Uint16);
-        cizim_gecisi.draw_indexed(0..KUP_INDEKS_SAYISI, 0, 0..ornek_sayisi);
+
+        for grup in &self.cizim_gruplari {
+            let mesh = self.gpu_mesh(grup.mesh);
+            cizim_gecisi.set_vertex_buffer(0, mesh.tepe.slice(..));
+            cizim_gecisi.set_index_buffer(mesh.indeks.slice(..), mesh.indeks_bicimi);
+            cizim_gecisi.draw_indexed(0..mesh.indeks_sayisi, 0, grup.ornekler.clone());
+        }
+    }
+
+    fn gpu_mesh(&self, anahtar: MeshAnahtari) -> &GpuMesh {
+        match anahtar {
+            MeshAnahtari::Kup => &self.kup_mesh,
+            MeshAnahtari::Kayitli(kimlik) => &self.kayitli_meshler[kimlik.deger()],
+        }
     }
 
     pub(super) fn boyutlandir(&mut self, aygit: &wgpu::Device, boyut: Cozunurluk) {
@@ -185,6 +262,27 @@ impl UcBoyutGrafik {
     }
 }
 
+fn gorunum_bilgisi(varlik: &Varlik) -> Option<(MeshAnahtari, Renk)> {
+    match varlik.gorunumu3b()? {
+        Gorunum3B::Kup { renk } => Some((MeshAnahtari::Kup, renk)),
+        Gorunum3B::Mesh { mesh, renk } => Some((MeshAnahtari::Kayitli(mesh), renk)),
+    }
+}
+
+fn ornegi_yaz(hedef: &mut Vec<u8>, varlik: &Varlik, renk: Renk) {
+    for deger in varlik.donusumu3b().model_matrisi().degerler() {
+        f32_yaz(hedef, deger);
+    }
+    for deger in [renk.kirmizi, renk.yesil, renk.mavi, renk.alfa] {
+        f32_yaz(hedef, deger);
+    }
+}
+
+fn ornek_sayisini_cevir(sayi: usize) -> OyunSonucu<u32> {
+    u32::try_from(sayi)
+        .map_err(|_| OyunHatasi::yeni("Tek karede desteklenenden fazla 3B varlık çiziliyor."))
+}
+
 fn piksel_f32(deger: u32) -> f32 {
     f32::from(u16::try_from(deger).unwrap_or(u16::MAX))
 }
@@ -195,10 +293,11 @@ fn f32_yaz(hedef: &mut Vec<u8>, deger: f32) {
 
 #[cfg(test)]
 mod testler {
-    use super::ORNEK_ADIMI;
+    use super::{MeshAnahtari, ORNEK_ADIMI};
 
     #[test]
     fn uc_boyut_ornegi_model_matrisi_ve_renkten_olusur() {
         assert_eq!(ORNEK_ADIMI, 80);
+        assert!(MeshAnahtari::Kup < MeshAnahtari::Kayitli(tgame_varlik::MeshKimligi::test(0)));
     }
 }
