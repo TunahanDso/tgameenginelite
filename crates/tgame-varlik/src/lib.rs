@@ -1,6 +1,7 @@
-//! Tgame Engine Lite varlık, dönüşüm ve kamera katmanı.
+//! Tgame Engine Lite varlık, dönüşüm, kamera ve dünya kaynak katmanı.
 
 use tgame_matematik::{Matris4, Renk, Vektor2, Vektor3};
+use tgame_model::{MeshVerisi, ModelVerisi};
 
 /// Oyun dünyasındaki bir varlığı benzersiz biçimde tanımlar.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -8,6 +9,18 @@ pub struct VarlikKimligi(usize);
 
 impl VarlikKimligi {
     /// Kimliğin dünya içindeki sayısal değerini döndürür.
+    #[must_use]
+    pub const fn deger(self) -> usize {
+        self.0
+    }
+}
+
+/// Dünya kayıt defterindeki bir mesh'i benzersiz biçimde tanımlar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct MeshKimligi(usize);
+
+impl MeshKimligi {
+    /// Kimliğin kayıt defterindeki sayısal değerini döndürür.
     #[must_use]
     pub const fn deger(self) -> usize {
         self.0
@@ -163,9 +176,16 @@ pub enum Gorunum2B {
 /// Bir varlığın üç boyutlu çizilebilir görünümünü belirtir.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Gorunum3B {
-    /// Yüzey normalleriyle aydınlatılan tek renkli küp görünümü.
+    /// Yüzey normalleriyle aydınlatılan yerleşik küp görünümü.
     Kup {
         /// Küpün temel rengi.
+        renk: Renk,
+    },
+    /// Dünya kayıt defterindeki genel mesh görünümü.
+    Mesh {
+        /// Çizilecek mesh'in kimliği.
+        mesh: MeshKimligi,
+        /// Mesh'in temel rengi.
         renk: Renk,
     },
 }
@@ -203,10 +223,16 @@ impl Varlik {
         Self::yeni(ad).gorunum(Gorunum2B::Ucgen { renk })
     }
 
-    /// Aydınlatılabilir tek renkli küp varlık taslağı oluşturur.
+    /// Aydınlatılabilir tek renkli yerleşik küp varlık taslağı oluşturur.
     #[must_use]
     pub fn kup(ad: impl Into<String>, renk: Renk) -> Self {
         Self::yeni(ad).gorunum3b(Gorunum3B::Kup { renk })
+    }
+
+    /// Kayıtlı bir mesh'i kullanan üç boyutlu varlık taslağı oluşturur.
+    #[must_use]
+    pub fn mesh(ad: impl Into<String>, mesh: MeshKimligi, renk: Renk) -> Self {
+        Self::yeni(ad).gorunum3b(Gorunum3B::Mesh { mesh, renk })
     }
 
     /// Başlangıç iki boyutlu dönüşümünü değiştirir.
@@ -428,10 +454,11 @@ impl Default for Kamera3B {
     }
 }
 
-/// Varlıkları, dünya boyutunu ve etkin kameraları saklayan oyun dünyasıdır.
+/// Varlıkları, mesh kaynaklarını, dünya boyutunu ve etkin kameraları saklar.
 #[derive(Debug, Clone, Default)]
 pub struct Dunya {
     varliklar: Vec<Varlik>,
+    meshler: Vec<MeshVerisi>,
     boyut: DunyaBoyutu,
     kamera2b: Kamera2B,
     kamera3b: Kamera3B,
@@ -467,6 +494,22 @@ impl Dunya {
         kimlik
     }
 
+    /// Dünyaya tek mesh ekler ve sabit kaynak kimliğini döndürür.
+    pub fn mesh_ekle(&mut self, mesh: MeshVerisi) -> MeshKimligi {
+        let kimlik = MeshKimligi(self.meshler.len());
+        self.meshler.push(mesh);
+        kimlik
+    }
+
+    /// Modeldeki bütün mesh'leri dünyaya ekleyip kimliklerini döndürür.
+    pub fn model_ekle(&mut self, model: ModelVerisi) -> Vec<MeshKimligi> {
+        model
+            .meshlere_ayir()
+            .into_iter()
+            .map(|mesh| self.mesh_ekle(mesh))
+            .collect()
+    }
+
     /// Kimliği verilen varlığı döndürür.
     #[must_use]
     pub fn varlik(&self, kimlik: VarlikKimligi) -> Option<&Varlik> {
@@ -479,10 +522,22 @@ impl Dunya {
         self.varliklar.get_mut(kimlik.0)
     }
 
+    /// Kimliği verilen mesh verisini döndürür.
+    #[must_use]
+    pub fn mesh(&self, kimlik: MeshKimligi) -> Option<&MeshVerisi> {
+        self.meshler.get(kimlik.0)
+    }
+
     /// Dünyadaki bütün varlıkları eklenme sırasıyla döndürür.
     #[must_use]
     pub fn varliklar(&self) -> &[Varlik] {
         &self.varliklar
+    }
+
+    /// Dünyadaki bütün mesh kaynaklarını eklenme sırasıyla döndürür.
+    #[must_use]
+    pub fn meshler(&self) -> &[MeshVerisi] {
+        &self.meshler
     }
 
     /// Etkin iki boyutlu kamerayı döndürür.
@@ -523,6 +578,7 @@ impl Dunya {
 #[cfg(test)]
 mod testler {
     use tgame_matematik::{Renk, Vektor2, Vektor3};
+    use tgame_model::MeshVerisi;
 
     use super::{Donusum2B, Donusum3B, Dunya, DunyaBoyutu, Varlik};
 
@@ -564,27 +620,36 @@ mod testler {
     }
 
     #[test]
-    fn uc_boyutlu_dunya_kup_donusumunu_gunceller() {
+    fn uc_boyutlu_dunya_mesh_kaynagini_paylasir() {
         let mut dunya = Dunya::yeni_3b();
+        let mesh = MeshVerisi::yeni(
+            vec![Vektor3::SIFIR, Vektor3::SAG, Vektor3::YUKARI],
+            vec![Vektor3::ILERI; 3],
+            vec![0, 1, 2],
+        )
+        .expect("Test mesh'i geçerli olmalı.");
+        let mesh = dunya.mesh_ekle(mesh);
         let kimlik = dunya.varlik_ekle(
-            Varlik::kup("Küp", Renk::SARI)
+            Varlik::mesh("Mesh", mesh, Renk::SARI)
                 .donusum3b(Donusum3B::yeni().konum(Vektor3::yeni(0.0, 1.0, -2.0))),
         );
 
         dunya
             .varlik_mut(kimlik)
-            .expect("Küp bulunmalı.")
+            .expect("Mesh varlığı bulunmalı.")
             .donusumu3b_mut()
             .tasi(Vektor3::SAG * 2.0);
 
         assert_eq!(dunya.boyut(), DunyaBoyutu::UcBoyut);
-        let konum = dunya
-            .varlik(kimlik)
-            .expect("Küp bulunmalı.")
-            .donusumu3b()
-            .konum;
-        assert!(yakin(konum.x, 2.0));
-        assert!(yakin(konum.y, 1.0));
-        assert!(yakin(konum.z, -2.0));
+        assert!(dunya.mesh(mesh).is_some());
+        assert!(yakin(
+            dunya
+                .varlik(kimlik)
+                .expect("Mesh varlığı bulunmalı.")
+                .donusumu3b()
+                .konum
+                .x,
+            2.0,
+        ));
     }
 }
