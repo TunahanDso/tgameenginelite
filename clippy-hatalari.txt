@@ -1,0 +1,14 @@
+error: this argument is passed by value, but not consumed in the function body
+   --> crates\tgame-model\src\lib.rs:508:12
+    |
+508 |     dugum: gltf::Node<'_>,
+    |            ^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#needless_pass_by_value
+    = note: `-D clippy::needless-pass-by-value` implied by `-D clippy::pedantic`
+    = help: to override `-D clippy::pedantic` add `#[allow(clippy::needless_pass_by_value)]`
+help: consider taking a reference instead
+    |
+508 |     dugum: &gltf::Node<'_>,
+    |            +
+
