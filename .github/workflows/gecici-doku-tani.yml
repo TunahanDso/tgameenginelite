@@ -10,12 +10,12 @@ jobs:
   tani:
     runs-on: windows-latest
     steps:
-      - name: Derleyici hatalarını göster
+      - name: Clippy hatalarını göster
         shell: pwsh
         run: |
           git clone --branch agent/ilk-moduler-iskelet --depth 1 https://github.com/TunahanDso/tgameenginelite kaynak 2>$null
           Set-Location kaynak
-          $satirlar = cargo check --workspace --all-targets --message-format=json 2>$null
+          $satirlar = cargo clippy --workspace --all-targets --all-features --message-format=json -- -D warnings 2>$null
           $hataVar = $false
           foreach ($satir in $satirlar) {
             try { $mesaj = $satir | ConvertFrom-Json } catch { continue }
