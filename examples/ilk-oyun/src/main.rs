@@ -1,11 +1,10 @@
 use tgame::onsoz::{
-    AlanKimligi, AlanTetikleyicisi, DiyalogDugumu, DiyalogKimligi, DiyalogSecenegi,
-    DiyalogTanimi, Donusum3B, Dunya, EsyaKimligi, EsyaTanimi, EtkilesimKimligi,
-    EtkilesimNoktasi, Eylem, FizikDunyasi, FizikGovdesi, Girdi, GorevAdimi, GorevAsamasi,
-    GorevHedefi, GorevKimligi, GorevTanimi, Kamera3B, KayitYoneticisi,
-    KontrolNoktasiKimligi, Kosul, KuralKimligi, KutuAlan, Macera, MalzemeKimligi,
-    MalzemeVerisi, MeshKimligi, ModelVerisi, OlayFiltresi, OlayKurali, Oyun, OyunAkisi,
-    OyunHatasi, OyunOlayi, OyunSonucu, Renk, Sahne, SahneKimligi, SahneTanimi,
+    AlanKimligi, AlanTetikleyicisi, DiyalogDugumu, DiyalogKimligi, DiyalogSecenegi, DiyalogTanimi,
+    Donusum3B, Dunya, EsyaKimligi, EsyaTanimi, EtkilesimKimligi, EtkilesimNoktasi, Eylem,
+    FizikDunyasi, FizikGovdesi, Girdi, GorevAdimi, GorevAsamasi, GorevHedefi, GorevKimligi,
+    GorevTanimi, Kamera3B, KayitYoneticisi, KontrolNoktasiKimligi, Kosul, KuralKimligi, KutuAlan,
+    Macera, MalzemeKimligi, MalzemeVerisi, MeshKimligi, ModelVerisi, OlayFiltresi, OlayKurali,
+    Oyun, OyunAkisi, OyunHatasi, OyunOlayi, OyunSonucu, Renk, Sahne, SahneKimligi, SahneTanimi,
     Tekrarlama, Tus, Varlik, VarlikKimligi, Vektor3, Zaman,
 };
 
@@ -100,11 +99,7 @@ impl DemoDurumu {
     ) -> OyunAkisi {
         let kare_saniyesi = zaman.kare_saniyesi().min(0.05);
         self.kamera_acisini_guncelle(girdi, kare_saniyesi);
-        let diyalog_acik = macera
-            .diyalog_gorunumu()
-            .ok()
-            .flatten()
-            .is_some();
+        let diyalog_acik = macera.diyalog_gorunumu().ok().flatten().is_some();
         let yon = if diyalog_acik {
             Vektor3::SIFIR
         } else {
@@ -359,7 +354,10 @@ impl DemoDurumu {
         let adim = ilerleme.map_or(0, |ilerleme| ilerleme.adim());
         let hedefler = ilerleme.map_or(&[][..], |ilerleme| ilerleme.hedefler());
         println!("\n--- KAYIP MÜHÜR GÜNLÜĞÜ ---");
-        println!("Sahne: {}", macera.etkin_sahne().map_or("yok", SahneKimligi::deger));
+        println!(
+            "Sahne: {}",
+            macera.etkin_sahne().map_or("yok", SahneKimligi::deger)
+        );
         println!(
             "Görev: {:?} / adım {} / hedefler {:?}",
             macera.gorev_asamasi(&self.kimlikler.gorev),
@@ -533,9 +531,7 @@ fn macerayi_olustur(kimlikler: &MaceraKimlikleri) -> OyunSonucu<Macera> {
             Vektor3::yeni(0.0, 0.0, 2.0),
             2.2,
         )
-        .eylemler(vec![Eylem::DiyalogBaslat(
-            kimlikler.gozcu_diyalogu.clone(),
-        )])
+        .eylemler(vec![Eylem::DiyalogBaslat(kimlikler.gozcu_diyalogu.clone())])
         .tekrarlama(Tekrarlama::HerZaman),
     );
 
@@ -568,10 +564,7 @@ fn macerayi_olustur(kimlikler: &MaceraKimlikleri) -> OyunSonucu<Macera> {
     macera.alan_tanimla(
         AlanTetikleyicisi::yeni(
             kimlikler.tapinak_alani.clone(),
-            KutuAlan::yeni(
-                Vektor3::yeni(0.0, 0.5, -4.4),
-                Vektor3::yeni(2.2, 2.5, 1.5),
-            ),
+            KutuAlan::yeni(Vektor3::yeni(0.0, 0.5, -4.4), Vektor3::yeni(2.2, 2.5, 1.5)),
         )
         .kosullar(vec![
             Kosul::EsyaEnAz {
