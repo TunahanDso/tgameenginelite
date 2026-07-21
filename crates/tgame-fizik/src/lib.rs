@@ -220,7 +220,7 @@ mod testler {
     use tgame_matematik::{Renk, Vektor3};
     use tgame_varlik::{Donusum3B, Dunya, Varlik};
 
-    use crate::{FizikDunyasi, FizikGovdesi};
+    use crate::{FizikDunyasi, FizikGovdesi, VARSAYILAN_ADIM};
 
     fn yakin(sol: f32, sag: f32) -> bool {
         (sol - sag).abs() < 0.01
