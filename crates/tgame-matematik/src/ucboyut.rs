@@ -35,6 +35,12 @@ impl Vektor3 {
         Self { x, y, z }
     }
 
+    /// Vektörün bütün bileşenlerinin sonlu olup olmadığını döndürür.
+    #[must_use]
+    pub fn sonlu_mu(self) -> bool {
+        self.x.is_finite() && self.y.is_finite() && self.z.is_finite()
+    }
+
     /// Vektör uzunluğunun karesini döndürür.
     #[must_use]
     pub const fn uzunluk_karesi(self) -> f32 {
@@ -149,6 +155,12 @@ impl Matris4 {
         self.degerler
     }
 
+    /// Matrisin bütün bileşenlerinin sonlu olup olmadığını döndürür.
+    #[must_use]
+    pub fn sonlu_mu(self) -> bool {
+        self.degerler.iter().all(|deger| deger.is_finite())
+    }
+
     /// Öteleme matrisi oluşturur.
     #[must_use]
     pub const fn oteleme(konum: Vektor3) -> Self {
@@ -208,6 +220,31 @@ impl Matris4 {
             * Self::donus_y(donus_radyan.y)
             * Self::donus_x(donus_radyan.x)
             * Self::olcekleme(olcek)
+    }
+
+    /// Bir noktayı homojen koordinatla dönüştürür.
+    #[must_use]
+    pub fn noktayi_donustur(self, nokta: Vektor3) -> Vektor3 {
+        let d = self.degerler;
+        let x = d[0] * nokta.x + d[4] * nokta.y + d[8] * nokta.z + d[12];
+        let y = d[1] * nokta.x + d[5] * nokta.y + d[9] * nokta.z + d[13];
+        let z = d[2] * nokta.x + d[6] * nokta.y + d[10] * nokta.z + d[14];
+        let w = d[3] * nokta.x + d[7] * nokta.y + d[11] * nokta.z + d[15];
+        if w.abs() > f32::EPSILON && (w - 1.0).abs() > f32::EPSILON {
+            Vektor3::yeni(x / w, y / w, z / w)
+        } else {
+            Vektor3::yeni(x, y, z)
+        }
+    }
+
+    /// Matrisin ilk üç sütunundan en büyük dünya ölçek katsayısını döndürür.
+    #[must_use]
+    pub fn en_buyuk_olcek(self) -> f32 {
+        let d = self.degerler;
+        let x = Vektor3::yeni(d[0], d[1], d[2]).uzunluk();
+        let y = Vektor3::yeni(d[4], d[5], d[6]).uzunluk();
+        let z = Vektor3::yeni(d[8], d[9], d[10]).uzunluk();
+        x.max(y).max(z)
     }
 
     /// Sağ elli kamera görünüm matrisi oluşturur.
@@ -302,29 +339,37 @@ mod testler {
     }
 
     #[test]
-    fn capraz_carpim_dik_vektor_uretir() {
-        let sonuc = Vektor3::SAG.capraz(Vektor3::YUKARI);
-        assert_eq!(sonuc, Vektor3::GERI);
+    fn capraz_carpim_sag_eli_izler() {
+        assert_eq!(Vektor3::SAG.capraz(Vektor3::YUKARI), Vektor3::GERI);
     }
 
     #[test]
-    fn uc_boyutlu_birim_vektorun_uzunlugu_birdir() {
-        let yon = Vektor3::yeni(2.0, 3.0, 6.0).birim();
-        assert!(yakin(yon.uzunluk(), 1.0));
+    fn model_matrisi_noktayi_donusturur() {
+        let matris = Matris4::model(
+            Vektor3::yeni(3.0, 2.0, -1.0),
+            Vektor3::SIFIR,
+            Vektor3::yeni(2.0, 3.0, 4.0),
+        );
+        let sonuc = matris.noktayi_donustur(Vektor3::yeni(1.0, 1.0, 1.0));
+
+        assert!(yakin(sonuc.x, 5.0));
+        assert!(yakin(sonuc.y, 5.0));
+        assert!(yakin(sonuc.z, 3.0));
+        assert!(yakin(matris.en_buyuk_olcek(), 4.0));
     }
 
     #[test]
-    fn model_matrisi_otelemeyi_son_sutunda_tasir() {
-        let matris =
-            Matris4::model(Vektor3::yeni(2.0, 3.0, 4.0), Vektor3::SIFIR, Vektor3::BIR).degerler();
-        assert!(yakin(matris[12], 2.0));
-        assert!(yakin(matris[13], 3.0));
-        assert!(yakin(matris[14], 4.0));
+    fn matris_carpimi_ebeveyn_ve_yerel_donusumu_birlestirir() {
+        let ebeveyn = Matris4::oteleme(Vektor3::yeni(2.0, 0.0, 0.0));
+        let yerel = Matris4::oteleme(Vektor3::yeni(0.0, 3.0, 0.0));
+        let sonuc = (ebeveyn * yerel).noktayi_donustur(Vektor3::SIFIR);
+
+        assert_eq!(sonuc, Vektor3::yeni(2.0, 3.0, 0.0));
     }
 
     #[test]
-    fn birim_matris_carpimi_degeri_degistirmez() {
-        let oteleme = Matris4::oteleme(Vektor3::yeni(1.0, 2.0, 3.0));
-        assert_eq!(Matris4::BIRIM * oteleme, oteleme);
+    fn perspektif_matrisi_sonludur() {
+        let matris = Matris4::perspektif_sag_el(std::f32::consts::FRAC_PI_3, 16.0 / 9.0, 0.1, 100.0);
+        assert!(matris.sonlu_mu());
     }
 }
