@@ -21,10 +21,11 @@ jobs:
           components: rustfmt
       - name: Rust kaynaklarini bicimlendir
         run: cargo fmt --all
-      - name: Bicimi kaydet ve gecici gorevi kaldir
+      - name: Bicimi kaydet ve gecici dosyalari kaldir
         shell: pwsh
         run: |
           Remove-Item '.github/workflows/gecici-macera-bicim.yml'
+          Remove-Item '.mega' -Recurse -Force -ErrorAction SilentlyContinue
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
