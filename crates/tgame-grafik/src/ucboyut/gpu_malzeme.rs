@@ -1,6 +1,4 @@
-use tgame_model::{
-    DokuFiltresi, DokuSarmasi, DokuVerisi, MalzemeVerisi, OrnekleyiciVerisi,
-};
+use tgame_model::{DokuFiltresi, DokuSarmasi, DokuVerisi, MalzemeVerisi, OrnekleyiciVerisi};
 
 pub(super) struct GpuMalzeme {
     pub(super) grup: wgpu::BindGroup,

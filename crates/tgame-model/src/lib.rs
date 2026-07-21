@@ -68,7 +68,9 @@ impl DokuVerisi {
         ornekleyici: OrnekleyiciVerisi,
     ) -> OyunSonucu<Self> {
         if genislik == 0 || yukseklik == 0 {
-            return Err(OyunHatasi::yeni("Doku genişliği ve yüksekliği sıfır olamaz."));
+            return Err(OyunHatasi::yeni(
+                "Doku genişliği ve yüksekliği sıfır olamaz.",
+            ));
         }
         let piksel_sayisi = genislik
             .checked_mul(yukseklik)
@@ -373,9 +375,7 @@ fn gltf_malzemesini_cevir(
 ) -> OyunSonucu<MalzemeVerisi> {
     let pbr = malzeme.pbr_metallic_roughness();
     let faktor = pbr.base_color_factor();
-    let mut sonuc = MalzemeVerisi::yeni(Renk::yeni(
-        faktor[0], faktor[1], faktor[2], faktor[3],
-    ));
+    let mut sonuc = MalzemeVerisi::yeni(Renk::yeni(faktor[0], faktor[1], faktor[2], faktor[3]));
 
     if let Some(bilgi) = pbr.base_color_texture() {
         if bilgi.tex_coord() != 0 {
@@ -407,9 +407,7 @@ fn gltf_ornekleyicisini_cevir(ornekleyici: gltf::texture::Sampler<'_>) -> Ornekl
                 | MinFilter::NearestMipmapLinear,
             ) => DokuFiltresi::EnYakin,
             Some(
-                MinFilter::Linear
-                | MinFilter::LinearMipmapNearest
-                | MinFilter::LinearMipmapLinear,
+                MinFilter::Linear | MinFilter::LinearMipmapNearest | MinFilter::LinearMipmapLinear,
             )
             | None => DokuFiltresi::Dogrusal,
         },
@@ -426,10 +424,7 @@ const fn gltf_sarmasini_cevir(sarma: WrappingMode) -> DokuSarmasi {
     }
 }
 
-fn gltf_resmini_cevir(
-    resim: &GltfResmi,
-    ornekleyici: OrnekleyiciVerisi,
-) -> OyunSonucu<DokuVerisi> {
+fn gltf_resmini_cevir(resim: &GltfResmi, ornekleyici: OrnekleyiciVerisi) -> OyunSonucu<DokuVerisi> {
     let piksel_sayisi = resim
         .width
         .checked_mul(resim.height)

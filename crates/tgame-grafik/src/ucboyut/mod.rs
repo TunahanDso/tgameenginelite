@@ -12,8 +12,7 @@ use tgame_varlik::{Dunya, Gorunum3B, MeshKimligi, Varlik};
 use gpu_malzeme::malzeme_yerlesimi_olustur;
 use gpu_mesh::GpuMesh;
 use pipeline::{
-    cizim_hatti_olustur, derinlik_gorunumu_olustur, kamera_yerlesimi_olustur,
-    ornek_tamponu_olustur,
+    cizim_hatti_olustur, derinlik_gorunumu_olustur, kamera_yerlesimi_olustur, ornek_tamponu_olustur,
 };
 
 pub(super) const DERINLIK_BICIMI: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -82,12 +81,8 @@ impl UcBoyutGrafik {
             }],
         });
         let ornek_tamponu = ornek_tamponu_olustur(aygit, BASLANGIC_ORNEK_TAMPON_BOYUTU);
-        let cizim_hatti = cizim_hatti_olustur(
-            aygit,
-            yuzey_bicimi,
-            &kamera_yerlesimi,
-            &malzeme_yerlesimi,
-        );
+        let cizim_hatti =
+            cizim_hatti_olustur(aygit, yuzey_bicimi, &kamera_yerlesimi, &malzeme_yerlesimi);
         let derinlik_gorunumu = derinlik_gorunumu_olustur(aygit, boyut);
         let kup_mesh = GpuMesh::kup(aygit, kuyruk, &malzeme_yerlesimi);
 
@@ -178,11 +173,7 @@ impl UcBoyutGrafik {
         Ok(())
     }
 
-    fn ornek_tamponunu_yaz(
-        &mut self,
-        aygit: &wgpu::Device,
-        kuyruk: &wgpu::Queue,
-    ) -> OyunSonucu {
+    fn ornek_tamponunu_yaz(&mut self, aygit: &wgpu::Device, kuyruk: &wgpu::Queue) -> OyunSonucu {
         let gerekli_boyut = u64::try_from(self.ornek_baytlari.len())
             .map_err(|_| OyunHatasi::yeni("GPU 3B örnek verisi desteklenen boyutu aştı."))?;
         if gerekli_boyut > self.ornek_tampon_kapasitesi {
@@ -286,7 +277,9 @@ fn gorunum_bilgisi(varlik: &Varlik, dunya: &Dunya) -> OyunSonucu<Option<(MeshAna
         Some(Gorunum3B::Kup { renk }) => Ok(Some((MeshAnahtari::Kup, renk))),
         Some(Gorunum3B::Mesh { mesh, renk }) => {
             let kaynak = dunya.mesh(mesh).ok_or_else(|| {
-                OyunHatasi::yeni("3B varlık, dünya kayıt defterinde bulunmayan bir mesh kullanıyor.")
+                OyunHatasi::yeni(
+                    "3B varlık, dünya kayıt defterinde bulunmayan bir mesh kullanıyor.",
+                )
             })?;
             Ok(Some((
                 MeshAnahtari::Kayitli(mesh),

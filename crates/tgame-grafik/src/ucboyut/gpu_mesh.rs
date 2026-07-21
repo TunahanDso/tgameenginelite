@@ -37,12 +37,7 @@ impl GpuMesh {
             ),
             indeks_sayisi: KUP_INDEKS_SAYISI,
             indeks_bicimi: wgpu::IndexFormat::Uint16,
-            malzeme: GpuMalzeme::yeni(
-                aygit,
-                kuyruk,
-                malzeme_yerlesimi,
-                &MalzemeVerisi::default(),
-            ),
+            malzeme: GpuMalzeme::yeni(aygit, kuyruk, malzeme_yerlesimi, &MalzemeVerisi::default()),
         }
     }
 
