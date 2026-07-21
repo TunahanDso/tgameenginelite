@@ -21,7 +21,9 @@ fn diyalog_secimi_hikaye_bayragini_degistirir() {
     macera
         .diyalog_baslat(&diyalog)
         .expect("Diyalog başlamalı.");
-    macera.diyalog_sec("evet").expect("Seçim uygulanmalı.");
+    macera
+        .diyalog_sec("evet")
+        .expect("Seçim uygulanmalı.");
 
     assert!(macera.durum().bayrak("yardim_ediyor"));
 }
