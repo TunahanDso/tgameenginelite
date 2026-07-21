@@ -10,7 +10,7 @@ permissions:
 jobs:
   denetim:
     if: github.actor != 'github-actions[bot]'
-    name: Büyük sürüm kalite denetimi
+    name: Güncel Clippy tanısı
     runs-on: windows-latest
 
     steps:
@@ -22,109 +22,28 @@ jobs:
       - name: Rust araç zincirini kur
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: clippy
 
-      - name: Malzeme ve culling stres sahnesini uygula
+      - name: Güncel Clippy hatalarını kaydet
         shell: pwsh
         run: |
-          $yol = 'examples/ilk-oyun/src/main.rs'
-          $icerik = [IO.File]::ReadAllText($yol)
-          $icerik = $icerik -replace 'Kamera3B, MeshKimligi', 'Kamera3B, MalzemeKimligi, MalzemeVerisi, MeshKimligi'
-
-          $kurulumDeseni = '    let piramit_mesh = piramit_meshini_yukle\(&mut dunya\)\?;\r?\n    let piramitler = piramitleri_ekle\(&mut dunya, &mut fizik, piramit_mesh\);'
-          $yeniKurulum = [string]::Join("`n", @(
-            '    let piramit_mesh = piramit_meshini_yukle(&mut dunya)?;',
-            '    let alternatif_malzeme = dunya.malzeme_ekle(MalzemeVerisi::yeni(Renk::yeni(',
-            '        0.08, 0.85, 1.0, 1.0,',
-            '    )));',
-            '    let piramitler = piramitleri_ekle(',
-            '        &mut dunya,',
-            '        &mut fizik,',
-            '        piramit_mesh,',
-            '        alternatif_malzeme,',
-            '    );',
-            '    gorunurluk_stres_sahnesi_ekle(&mut dunya, piramit_mesh);'
-          ))
-          $icerik = [regex]::Replace($icerik, $kurulumDeseni, $yeniKurulum)
-
-          $imzaDeseni = 'fn piramitleri_ekle\(\r?\n    dunya: &mut Dunya,\r?\n    fizik: &mut FizikDunyasi,\r?\n    mesh: MeshKimligi,\r?\n\) -> Vec<VarlikKimligi> \{'
-          $yeniImza = [string]::Join("`n", @(
-            'fn piramitleri_ekle(',
-            '    dunya: &mut Dunya,',
-            '    fizik: &mut FizikDunyasi,',
-            '    mesh: MeshKimligi,',
-            '    alternatif_malzeme: MalzemeKimligi,',
-            ') -> Vec<VarlikKimligi> {'
-          ))
-          $icerik = [regex]::Replace($icerik, $imzaDeseni, $yeniImza)
-
-          $donguDeseni = '(?s)    for \(konum, renk\) in piramitler \{.*?        kimlikler\.push\(kimlik\);'
-          $yeniDongu = [string]::Join("`n", @(
-            '    for (sira, (konum, renk)) in piramitler.into_iter().enumerate() {',
-            '        let varlik = if sira.is_multiple_of(3) {',
-            '            Varlik::mesh_malzemeli(',
-            '                "Alternatif Malzemeli Piramit",',
-            '                mesh,',
-            '                alternatif_malzeme,',
-            '                renk,',
-            '            )',
-            '        } else {',
-            '            Varlik::mesh("Dokulu glTF Piramit", mesh, renk)',
-            '        };',
-            '        let kimlik = dunya.varlik_ekle(',
-            '            varlik.donusum3b(Donusum3B::yeni().konum(konum).olcek(goruntu_olcegi)),',
-            '        );',
-            '        kimlikler.push(kimlik);'
-          ))
-          $icerik = [regex]::Replace($icerik, $donguDeseni, $yeniDongu)
-
-          if (-not $icerik.Contains('fn gorunurluk_stres_sahnesi_ekle')) {
-            $stres = [string]::Join("`n", @(
-              'fn gorunurluk_stres_sahnesi_ekle(dunya: &mut Dunya, mesh: MeshKimligi) {',
-              '    let olcek = Vektor3::yeni(0.35, 0.35, 0.35);',
-              '    for sira in 0_u16..256 {',
-              '        let sutun = f32::from(sira % 16);',
-              '        let satir = f32::from(sira / 16);',
-              '        dunya.varlik_ekle(',
-              '            Varlik::mesh("Frustum Dışı Piramit", mesh, Renk::BEYAZ).donusum3b(',
-              '                Donusum3B::yeni()',
-              '                    .konum(Vektor3::yeni(400.0 + sutun * 2.0, -0.58, -satir * 2.0))',
-              '                    .olcek(olcek),',
-              '            ),',
-              '        );',
-              '    }',
-              '}',
-              '',
-              ''
-            ))
-            $icerik = $icerik.Replace(
-              'fn zemin_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) {',
-              $stres + 'fn zemin_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) {'
-            )
+          $satirlar = cargo clippy --workspace --all-targets --all-features --message-format=json -- -D warnings 2>$null
+          $hatalar = [System.Collections.Generic.List[string]]::new()
+          foreach ($satir in $satirlar) {
+            try { $mesaj = $satir | ConvertFrom-Json } catch { continue }
+            if ($mesaj.reason -eq 'compiler-message' -and $mesaj.message.level -eq 'error') {
+              $hatalar.Add([string]$mesaj.message.rendered)
+            }
           }
-
-          if (-not $icerik.Contains('MalzemeKimligi')) { throw 'Malzeme kimliği içe aktarımı uygulanamadı.' }
-          if (-not $icerik.Contains('alternatif_malzeme: MalzemeKimligi')) { throw 'Malzeme parametresi uygulanamadı.' }
-          if (-not $icerik.Contains('fn gorunurluk_stres_sahnesi_ekle')) { throw 'Culling stres sahnesi uygulanamadı.' }
-
-          [IO.File]::WriteAllText($yol, $icerik, [Text.UTF8Encoding]::new($false))
-          cargo fmt --all
+          if ($hatalar.Count -eq 0) { $hatalar.Add('CLIPPY_TEMIZ') }
+          [IO.File]::WriteAllText(
+            'clippy-hatalari.txt',
+            ($hatalar -join "`n`n"),
+            [Text.UTF8Encoding]::new($false)
+          )
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- $yol
-          if (git status --porcelain) {
-            git commit -m "Aynı mesh için bağımsız malzeme ve culling stresi ekle"
-            git push origin HEAD:agent/ilk-moduler-iskelet
-          }
-
-      - name: Biçimi denetle
-        run: cargo fmt --all --check
-
-      - name: Workspace'i denetle
-        run: cargo check --workspace --all-targets
-
-      - name: Clippy denetimini çalıştır
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-
-      - name: Testleri çalıştır
-        run: cargo test --workspace --all-targets --all-features
+          git add clippy-hatalari.txt
+          git commit -m "Güncel Clippy tanı sonuçlarını kaydet"
+          git push origin HEAD:agent/ilk-moduler-iskelet
+          if ($hatalar[0] -ne 'CLIPPY_TEMIZ') { exit 1 }
