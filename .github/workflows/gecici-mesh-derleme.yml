@@ -1,0 +1,27 @@
+name: Geçici Mesh Derleme Tanısı
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tani:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Derleyici hatalarını göster
+        shell: pwsh
+        run: |
+          $satirlar = cargo check --workspace --all-targets --message-format=json 2>$null
+          $hataVar = $false
+          foreach ($satir in $satirlar) {
+            try { $mesaj = $satir | ConvertFrom-Json } catch { continue }
+            if ($mesaj.reason -eq 'compiler-message' -and $mesaj.message.level -eq 'error') {
+              $hataVar = $true
+              Write-Host $mesaj.message.rendered
+            }
+          }
+          if ($hataVar) { exit 1 }
