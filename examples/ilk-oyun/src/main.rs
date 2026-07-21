@@ -1,6 +1,7 @@
 use tgame::onsoz::{
-    Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Girdi, Kamera3B, Oyun, OyunAkisi, OyunSonucu,
-    Renk, Sahne, Tus, Varlik, VarlikKimligi, Vektor3, Zaman,
+    Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Girdi, Kamera3B, MeshKimligi, ModelVerisi,
+    Oyun, OyunAkisi, OyunHatasi, OyunSonucu, Renk, Sahne, Tus, Varlik, VarlikKimligi, Vektor3,
+    Zaman,
 };
 
 const OYUNCU_HIZI: f32 = 4.8;
@@ -10,23 +11,43 @@ const KLAVYE_KAMERA_HIZI: f32 = 1.5;
 const KAMERA_UZAKLIGI: f32 = 7.5;
 const OYUNCU_OLCEGI: Vektor3 = Vektor3::yeni(0.75, 0.75, 0.75);
 
+struct SahneKurulumu {
+    dunya: Dunya,
+    fizik: FizikDunyasi,
+    oyuncu: VarlikKimligi,
+    merkez: VarlikKimligi,
+    piramitler: Vec<VarlikKimligi>,
+}
+
 struct OyunDurumu {
     fizik: FizikDunyasi,
     oyuncu: VarlikKimligi,
     merkez: VarlikKimligi,
+    piramitler: Vec<VarlikKimligi>,
     kamera_yatay: f32,
     kamera_dikey: f32,
 }
 
 impl OyunDurumu {
-    fn yeni(fizik: FizikDunyasi, oyuncu: VarlikKimligi, merkez: VarlikKimligi) -> Self {
-        Self {
+    fn yeni(kurulum: SahneKurulumu) -> (Dunya, Self) {
+        let SahneKurulumu {
+            dunya,
             fizik,
             oyuncu,
             merkez,
-            kamera_yatay: 0.0,
-            kamera_dikey: 0.35,
-        }
+            piramitler,
+        } = kurulum;
+        (
+            dunya,
+            Self {
+                fizik,
+                oyuncu,
+                merkez,
+                piramitler,
+                kamera_yatay: 0.0,
+                kamera_dikey: 0.35,
+            },
+        )
     }
 
     fn guncelle(&mut self, girdi: &Girdi, zaman: &Zaman, dunya: &mut Dunya) -> OyunAkisi {
@@ -34,7 +55,7 @@ impl OyunDurumu {
         self.kamera_acisini_guncelle(girdi, kare_saniyesi);
         let yon = self.hareket_yonu(girdi);
         let oyuncu_konumu = self.oyuncuyu_guncelle(girdi, zaman, dunya, yon);
-        self.merkezi_dondur(dunya, kare_saniyesi);
+        self.sahneyi_canlandir(dunya, kare_saniyesi);
         self.kamerayi_yerlestir(dunya, oyuncu_konumu);
         self.durum_yazdir(girdi, zaman, oyuncu_konumu);
 
@@ -112,7 +133,7 @@ impl OyunDurumu {
         oyuncu.donusumu3b().konum
     }
 
-    fn merkezi_dondur(&self, dunya: &mut Dunya, kare_saniyesi: f32) {
+    fn sahneyi_canlandir(&self, dunya: &mut Dunya, kare_saniyesi: f32) {
         dunya
             .varlik_mut(self.merkez)
             .expect("Merkez küp oyun boyunca kalmalı.")
@@ -122,6 +143,15 @@ impl OyunDurumu {
                 0.7 * kare_saniyesi,
                 0.15 * kare_saniyesi,
             ));
+
+        for (sira, kimlik) in self.piramitler.iter().copied().enumerate() {
+            let yon = if sira & 1 == 0 { 1.0 } else { -1.0 };
+            dunya
+                .varlik_mut(kimlik)
+                .expect("Piramit varlığı oyun boyunca kalmalı.")
+                .donusumu3b_mut()
+                .dondur(Vektor3::YUKARI * (yon * 0.45 * kare_saniyesi));
+        }
     }
 
     fn kamerayi_yerlestir(&self, dunya: &mut Dunya, oyuncu_konumu: Vektor3) {
@@ -161,19 +191,18 @@ impl OyunDurumu {
 }
 
 fn main() -> OyunSonucu {
-    let (dunya, fizik, oyuncu, merkez) = sahneyi_olustur();
-    let mut durum = OyunDurumu::yeni(fizik, oyuncu, merkez);
+    let (dunya, mut durum) = OyunDurumu::yeni(sahneyi_olustur()?);
 
-    Oyun::yeni("Tgame 3B Fizik Dünyası")
+    Oyun::yeni("Tgame 3B Fizik ve glTF Dünyası")
         .cozunurluk(960, 640)
         .mod_klasoru("modlar")
-        .sahne_ekle(Sahne::yeni("3B Fizik Başlangıcı"))
+        .sahne_ekle(Sahne::yeni("3B Mesh Başlangıcı"))
         .dunya(dunya)
         .her_kare(move |girdi, zaman, dunya| durum.guncelle(girdi, zaman, dunya))
         .calistir()
 }
 
-fn sahneyi_olustur() -> (Dunya, FizikDunyasi, VarlikKimligi, VarlikKimligi) {
+fn sahneyi_olustur() -> OyunSonucu<SahneKurulumu> {
     let mut dunya = Dunya::yeni_3b();
     let mut fizik = FizikDunyasi::yeni();
     dunya.kamera3b_ayarla(
@@ -185,6 +214,8 @@ fn sahneyi_olustur() -> (Dunya, FizikDunyasi, VarlikKimligi, VarlikKimligi) {
 
     zemin_ekle(&mut dunya, &mut fizik);
     sutunlari_ekle(&mut dunya, &mut fizik);
+    let piramit_mesh = piramit_meshini_yukle(&mut dunya)?;
+    let piramitler = piramitleri_ekle(&mut dunya, &mut fizik, piramit_mesh);
 
     let oyuncu = dunya.varlik_ekle(
         Varlik::kup("Oyuncu", Renk::SARI).donusum3b(
@@ -206,7 +237,62 @@ fn sahneyi_olustur() -> (Dunya, FizikDunyasi, VarlikKimligi, VarlikKimligi) {
     );
     fizik.govde_ekle(FizikGovdesi::statik_kup(merkez, merkez_olcegi));
 
-    (dunya, fizik, oyuncu, merkez)
+    Ok(SahneKurulumu {
+        dunya,
+        fizik,
+        oyuncu,
+        merkez,
+        piramitler,
+    })
+}
+
+fn piramit_meshini_yukle(dunya: &mut Dunya) -> OyunSonucu<MeshKimligi> {
+    let model = ModelVerisi::gltf_yukle("assets/piramit.gltf")?;
+    dunya
+        .model_ekle(model)
+        .first()
+        .copied()
+        .ok_or_else(|| OyunHatasi::yeni("Piramit modeli kayıtlı mesh üretmedi."))
+}
+
+fn piramitleri_ekle(
+    dunya: &mut Dunya,
+    fizik: &mut FizikDunyasi,
+    mesh: MeshKimligi,
+) -> Vec<VarlikKimligi> {
+    let piramitler = [
+        (Vektor3::yeni(-3.2, -0.58, -2.8), Renk::MAVI),
+        (Vektor3::yeni(-1.6, -0.58, -4.2), Renk::YESIL),
+        (Vektor3::yeni(1.6, -0.58, -4.2), Renk::KIRMIZI),
+        (Vektor3::yeni(3.2, -0.58, -2.8), Renk::SARI),
+        (Vektor3::yeni(-3.2, -0.58, 2.8), Renk::KIRMIZI),
+        (Vektor3::yeni(-1.6, -0.58, 4.2), Renk::SARI),
+        (Vektor3::yeni(1.6, -0.58, 4.2), Renk::MAVI),
+        (Vektor3::yeni(3.2, -0.58, 2.8), Renk::YESIL),
+    ];
+    let goruntu_olcegi = Vektor3::yeni(0.65, 0.65, 0.65);
+    let carpismа_olcegi = Vektor3::yeni(1.3, 1.17, 1.3);
+    let mut kimlikler = Vec::with_capacity(piramitler.len());
+
+    for (konum, renk) in piramitler {
+        let kimlik = dunya.varlik_ekle(
+            Varlik::mesh("glTF Piramit", mesh, renk).donusum3b(
+                Donusum3B::yeni()
+                    .konum(konum)
+                    .olcek(goruntu_olcegi),
+            ),
+        );
+        kimlikler.push(kimlik);
+
+        let engel = dunya.varlik_ekle(
+            Varlik::yeni("Piramit Çarpışması").donusum3b(
+                Donusum3B::yeni().konum(konum + Vektor3::YUKARI * 0.585),
+            ),
+        );
+        fizik.govde_ekle(FizikGovdesi::statik_kup(engel, carpismа_olcegi));
+    }
+
+    kimlikler
 }
 
 fn zemin_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) {
@@ -248,7 +334,8 @@ fn sutunlari_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) {
     for (konum, renk, yukseklik) in sutunlar {
         let olcek = Vektor3::yeni(0.8, yukseklik, 0.8);
         let kimlik = dunya.varlik_ekle(
-            Varlik::kup("Sütun", renk).donusum3b(Donusum3B::yeni().konum(konum).olcek(olcek)),
+            Varlik::kup("Sütun", renk)
+                .donusum3b(Donusum3B::yeni().konum(konum).olcek(olcek)),
         );
         fizik.govde_ekle(FizikGovdesi::statik_kup(kimlik, olcek));
     }
