@@ -1,6 +1,6 @@
 # Tgame Engine Lite 3B Mimari Sözleşmesi
 
-Bu belge, motorun üç boyutlu matematik, varlık, fizik, model ve GPU çizim katmanlarında uyulacak temel sözleşmeleri tanımlar.
+Bu belge, motorun üç boyutlu matematik, varlık, fizik, model, malzeme ve GPU çizim katmanlarında uyulacak temel sözleşmeleri tanımlar.
 
 ## Koordinat sistemi
 
@@ -76,14 +76,14 @@ Bir 3B varlık ortak olarak şunları taşır:
 
 - `Donusum3B`: konum, Euler dönüşü ve ölçek
 - `VarlikKimligi`: oyun nesnesi kimliği
-- `Gorunum3B`: çizim kaynağı ve temel RGBA renk
+- `Gorunum3B`: çizim kaynağı ve varlık renk çarpanı
 
 `Gorunum3B` iki kaynak türünü destekler:
 
 - `Gorunum3B::Kup`: motorun yerleşik küp mesh'i
 - `Gorunum3B::Mesh`: dünyadaki bir `MeshKimligi`
 
-`VarlikKimligi` ile `MeshKimligi` bilinçli biçimde ayrıdır. Bir mesh kimliği çok sayıda varlık tarafından paylaşılabilir; her varlığın dönüşümü ve rengi ayrı kalır.
+`VarlikKimligi` ile `MeshKimligi` bilinçli biçimde ayrıdır. Bir mesh kimliği çok sayıda varlık tarafından paylaşılabilir; her varlığın dönüşümü ve renk çarpanı ayrı kalır.
 
 ## CPU mesh kayıt defteri
 
@@ -96,48 +96,110 @@ Bir 3B varlık ortak olarak şunları taşır:
 
 Kimlik, vektördeki sabit sıra numarasıdır. Kaynak silme ve kimlik yeniden kullanımı henüz yoktur. Bu karar kimlikleri kararlı tutar ve CPU–GPU kayıtlarının aynı sırayla eşitlenmesini kolaylaştırır.
 
-## Genel model verisi
+## Genel model, UV ve malzeme verisi
 
-`tgame-model`, grafik aygıtından bağımsız CPU mesh verisi üretir:
+`tgame-model`, grafik aygıtından bağımsız kaynak verisi üretir:
 
-- `MeshVerisi`: konumlar, normaller ve `u32` indeksler
+- `MeshVerisi`: konumlar, normaller, `Vektor2` UV'ler, `u32` indeksler ve içe aktarılmış malzeme
+- `MalzemeVerisi`: taban renk çarpanı ve isteğe bağlı taban renk dokusu
+- `DokuVerisi`: doğrulanmış genişlik, yükseklik, RGBA8 baytları ve sampler ayarları
+- `OrnekleyiciVerisi`: büyütme/küçültme filtresi ve U/V sarma davranışı
 - `ModelVerisi`: bir veya daha fazla mesh
 - `ModelVerisi::gltf_yukle`: `.gltf` ve `.glb` dosya yükleme
 
-Yükleyici yalnızca üçgen primitive'leri kabul eder. İndeks bulunmazsa sıralı indeks üretir; normal bulunmazsa üçgen yüzlerinden yumuşatılmış tepe normalleri hesaplar.
+Yükleyici yalnızca üçgen primitive'leri kabul eder. İndeks bulunmazsa sıralı indeks üretir; normal bulunmazsa üçgen yüzlerinden yumuşatılmış tepe normalleri hesaplar. `TEXCOORD_0` bulunmazsa her tepeye sıfır UV atanır.
 
 GPU'ya geçmeden önce şu koşullar zorunludur:
 
 - Mesh en az bir tepe içerir.
-- Konum ve normal sayıları eşittir.
+- Konum, normal ve UV sayıları eşittir.
 - İndeks listesi boş değildir ve üçün katıdır.
 - Bütün indeksler tepe sınırları içindedir.
+- Doku genişliği ve yüksekliği sıfır değildir.
+- RGBA8 bayt sayısı `genişlik × yükseklik × 4` değeridir.
+
+## glTF malzeme içe aktarma
+
+İlk malzeme aşamasında PBR metallic-roughness malzemesinden şunlar alınır:
+
+- `baseColorFactor`
+- `baseColorTexture`
+- Taban renk dokusunun `texCoord` alanı; yalnızca `TEXCOORD_0` kabul edilir
+- `magFilter` ve `minFilter`
+- `wrapS` ve `wrapT`
+
+Sampler dönüşümleri:
+
+- `NEAREST` → `DokuFiltresi::EnYakin`
+- `LINEAR` → `DokuFiltresi::Dogrusal`
+- `REPEAT` → `DokuSarmasi::Tekrarla`
+- `MIRRORED_REPEAT` → `DokuSarmasi::AynalayarakTekrarla`
+- `CLAMP_TO_EDGE` → `DokuSarmasi::KenaraSabitle`
+
+İçe aktarılan 8 bit resimler RGBA8'e dönüştürülür:
+
+- R8 → gri RGB + tam alfa
+- R8G8 → gri RGB + ikinci kanal alfa
+- R8G8B8 → RGB + tam alfa
+- R8G8B8A8 → doğrudan RGBA
+
+16 bit ve kayan noktalı resim biçimleri bu aşamada Türkçe `OyunHatasi` ile reddedilir.
 
 ## GPU mesh kaydı
 
 `UcBoyutGrafik`, dünya kayıt defterinin GPU karşılığını aynı sıra ile tutar.
 
 - Yeni dünya mesh'leri ilk görüldükleri karede GPU'ya yüklenir.
-- Konum ve normal, tepede art arda altı `f32` olarak saklanır.
 - Kayıtlı mesh indeksleri `u32` ve `wgpu::IndexFormat::Uint32` kullanır.
 - Yerleşik küp mevcut küçük `u16` indeks düzenini korur.
 - CPU kayıt defterine yeni mesh eklendiğinde yalnızca eksik son kayıtlar GPU'ya aktarılır.
 
+Her tepe 32 bayt taşır:
+
+```text
+konum.xyz   12 bayt   location 0
+normal.xyz  12 bayt   location 1
+uv.xy        8 bayt   location 7
+```
+
 Bir mesh kaynağı için tepe ve indeks tamponları bir kez oluşturulur. Aynı mesh'i kullanan her varlık için geometri tekrar gönderilmez.
+
+## GPU malzeme kaydı
+
+Her `GpuMesh`, mevcut aşamada kendi `GpuMalzeme` kaydını taşır. GPU malzemesi şu kaynakların ömrünü birlikte yönetir:
+
+- `Rgba8UnormSrgb` taban renk dokusu
+- `TextureView`
+- WGPU `Sampler`
+- Malzeme `BindGroup`
+
+Dokusuz mesh'ler 1×1 beyaz RGBA8 doku kullanır. Bu sayede shader'da koşullu dokulu/dokusuz dal bulunmaz; bütün mesh'ler aynı texture-sampling yolunu kullanır.
+
+Pipeline bind group sözleşmesi:
+
+```text
+group 0: kamera uniform tamponu
+group 1 binding 0: taban renk texture view
+group 1 binding 1: filtering sampler
+```
+
+GPU dokuları tek mip seviyesine sahiptir. Sampler'ın mipmap filtresi eşlenir ancak bu aşamada mipmap zinciri üretilmez.
 
 ## Instance verisi ve draw batching
 
 Her etkin 3B varlık GPU'ya 80 bayt instance verisi gönderir:
 
 - 64 bayt model matrisi
-- 16 bayt temel RGBA renk
+- 16 bayt renk çarpanı
+
+Kayıtlı glTF mesh'lerinde instance rengi, malzemenin `baseColorFactor` değeriyle CPU tarafında çarpılır. Fragment shader bu sonucu sRGB taban renk dokusundan örneklenen renkle tekrar çarpar.
 
 Kare hazırlığında varlıklar `MeshAnahtari` ile sıralanır:
 
 - Yerleşik küp grubu
 - Her `MeshKimligi` için ayrı kayıtlı mesh grubu
 
-Bütün instance verileri tek dinamik instance tamponuna ardışık yazılır. Her grup bu tampon içindeki kendi `Range<u32>` aralığını taşır. Render geçişinde pipeline, kamera grubu ve instance tamponu bir kez bağlanır; grup değiştikçe yalnızca tepe/indeks tamponları ve indeks biçimi değiştirilir.
+Bütün instance verileri tek dinamik instance tamponuna ardışık yazılır. Her grup bu tampon içindeki kendi `Range<u32>` aralığını taşır. Render geçişinde pipeline, kamera grubu ve instance tamponu bir kez bağlanır; grup değiştikçe malzeme bind group'u, tepe/indeks tamponları ve indeks biçimi değiştirilir.
 
 Her mesh grubu için tek çağrı yapılır:
 
@@ -145,18 +207,31 @@ Her mesh grubu için tek çağrı yapılır:
 draw_indexed(mesh indeksleri, grup instance aralığı)
 ```
 
-Bu nedenle aynı glTF mesh'ini kullanan yüzlerce varlık tek draw call ile çizilebilir. Farklı mesh sayısı draw call sayısının temel belirleyicisidir.
+Bu nedenle aynı dokulu glTF mesh'ini kullanan yüzlerce varlık tek draw call ile çizilebilir. Farklı mesh sayısı draw call sayısının temel belirleyicisidir.
 
 ## Yerleşik küp mesh'i
 
 Küp mesh'i:
 
 - 24 tepe
-- Her tepede konum ve yüzey normali
+- Her tepede konum, yüzey normali ve yüz UV'si
 - 36 adet `u16` indeks
 - Üçgen listesi topolojisi
+- Otomatik 1×1 beyaz malzeme dokusu
 
-Her yüzün ayrı normal taşıması için köşe konumları yüzler arasında paylaşılmaz. Bu, keskin küp kenarlarında doğru temel aydınlatma sağlar.
+Her yüzün ayrı normal ve UV taşıması için köşe konumları yüzler arasında paylaşılmaz. Bu, keskin küp kenarlarında doğru temel aydınlatma ve yüz başına tam UV alanı sağlar.
+
+## Shader ve aydınlatma
+
+Vertex shader model matrisiyle dünya konumunu ve normalini üretir; UV'yi fragment aşamasına aktarır.
+
+Fragment shader:
+
+1. `textureSample` ile taban renk dokusunu örnekler.
+2. Doku rengini instance/malzeme renk çarpanıyla birleştirir.
+3. Sabit yönsel ışık ve ortam payıyla temel yaygın aydınlatma uygular.
+
+Bu aşama tam PBR değildir; ancak geometri, UV, doku, sampler ve renk çarpanı ayrımı sonraki PBR kaynakları için temel oluşturur.
 
 ## Derinlik
 
@@ -164,31 +239,30 @@ Her yüzün ayrı normal taşıması için köşe konumları yüzler arasında p
 
 Pencere yeniden boyutlandırıldığında yüzey yapılandırmasıyla birlikte derinlik dokusu da yeni boyutta yeniden oluşturulur.
 
-## Aydınlatma
-
-Gölgelendirici tek sabit yönsel ışık kullanır. Dünya normalinin ışık yönüyle nokta çarpımı, ortam payıyla birleştirilerek temel yaygın aydınlatma üretir.
-
-Küp ve glTF mesh'leri aynı konum/normal vertex sözleşmesini ve aynı shader'ı kullanır.
-
-## Güncel glTF sınırları
+## Güncel sınırlar
 
 - glTF düğüm hiyerarşisi ve düğüm dönüşümleri uygulanmaz.
-- Primitive malzemeleri, UV ve dokular çizime aktarılmaz.
-- Bir varlık, seçilen tek `MeshKimligi` ve temel renk taşır.
+- Yalnızca `TEXCOORD_0` desteklenir.
+- Metalik/pürüzlülük, normal, emissive ve occlusion dokuları çizilmez.
+- Mipmap zinciri oluşturulmaz.
+- Malzeme mesh kaydının parçasıdır; bağımsız `MalzemeKimligi` ve aynı geometriyi farklı malzemelerle paylaşma henüz yoktur.
+- Alfa modu, çift taraflılık ve alpha cutoff henüz uygulanmaz.
 - İskelet animasyonu, morph target ve skinning yoktur.
-- Kaynak silme, sıcak yenileme ve GPU mesh boşaltma henüz yoktur.
+- Kaynak silme, sıcak yenileme ve GPU kaynak boşaltma henüz yoktur.
 
 ## Geriye dönük uyumluluk
 
-2B çizici ayrı modülde korunur. `ikiboyut-oyun` paketi workspace'e dahildir ve her kalite koşusunda derlenir. Yerleşik `Varlik::kup` API'si genel mesh sistemi içinde korunur.
+2B çizici ayrı modülde korunur. `ikiboyut-oyun` paketi workspace'e dahildir ve her kalite koşusunda derlenir. Yerleşik `Varlik::kup` API'si genel dokulu mesh sistemi içinde korunur.
 
 ## Sonraki 3B aşamalar
 
-1. UV, sampler, doku ve malzeme kayıt defteri
-2. glTF düğüm hiyerarşisi ve yerel/dünya dönüşümleri
-3. Frustum culling ve görünür instance grupları
-4. Hareketli–hareketli çarpışma ve geniş faz hızlandırması
-5. Kapsül oyuncu çarpışması, basamak ve eğimli yüzeyler
-6. Dünya ışıkları, gölge haritası ve normal matrisi
-7. Animasyon, iskelet ve skinning
-8. Kaynak sıcak yenileme ve yaşam döngüsü yönetimi
+1. Bağımsız `MalzemeKimligi`, doku tekrar kullanımı ve malzeme bazlı batching
+2. Mipmap üretimi ve anisotropic filtering
+3. glTF düğüm hiyerarşisi ve yerel/dünya dönüşümleri
+4. Frustum culling ve görünür instance grupları
+5. Metalik/pürüzlülük, normal ve emissive haritalarıyla PBR
+6. Dünya ışıkları ve gölge haritası
+7. Hareketli–hareketli çarpışma ve geniş faz hızlandırması
+8. Kapsül oyuncu çarpışması, basamak ve eğimli yüzeyler
+9. Animasyon, iskelet ve skinning
+10. Kaynak sıcak yenileme ve yaşam döngüsü yönetimi
