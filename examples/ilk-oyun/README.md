@@ -52,7 +52,7 @@ Oyuncu Sisli Köy Meydanı'nda Gözcü Aras ile konuşur, **Kayıp Mühür** gö
 - `R`: son kontrol noktasına dönme
 - `Escape`: kontrollü kapanış
 
-Diyalog açıkken oyuncu hareketi durur. Konuşma ve görev bilgileri mevcut yazı çizim katmanı tamamlanana kadar terminalde gösterilir.
+Diyalog açıkken oyuncu hareketi durur. Konuşma, görev, kayıt ve sahne geçişi bilgileri mevcut yazı çizim katmanı tamamlanana kadar terminalde gösterilir.
 
 ## Grafik stres sahnesi
 
