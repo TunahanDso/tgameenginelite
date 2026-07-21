@@ -1,17 +1,9 @@
 use tgame_cekirdek::Cozunurluk;
 
-use super::mesh::{
-    KUP_INDEKS_TAMPON_BOYUTU, KUP_TEPE_TAMPON_BOYUTU, TEPE_ADIMI_GPU, TEPE_NITELIKLERI,
-    indeks_baytlari, tepe_baytlari,
-};
+use super::mesh::{TEPE_ADIMI_GPU, TEPE_NITELIKLERI};
 use super::{DERINLIK_BICIMI, ORNEK_ADIMI_GPU, ORNEK_NITELIKLERI};
 
-const KUP_GOLGELENDIRICISI: &str = include_str!("../kup.wgsl");
-
-pub(super) struct MeshTamponlari {
-    pub(super) tepe: wgpu::Buffer,
-    pub(super) indeks: wgpu::Buffer,
-}
+const MESH_GOLGELENDIRICISI: &str = include_str!("../kup.wgsl");
 
 pub(super) fn kamera_yerlesimi_olustur(aygit: &wgpu::Device) -> wgpu::BindGroupLayout {
     aygit.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -29,34 +21,9 @@ pub(super) fn kamera_yerlesimi_olustur(aygit: &wgpu::Device) -> wgpu::BindGroupL
     })
 }
 
-pub(super) fn mesh_tamponlari_olustur(
-    aygit: &wgpu::Device,
-    kuyruk: &wgpu::Queue,
-) -> MeshTamponlari {
-    let tepe_baytlari = tepe_baytlari();
-    let tepe = aygit.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("Tgame 3B Küp Tepe Tamponu"),
-        size: KUP_TEPE_TAMPON_BOYUTU,
-        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-    kuyruk.write_buffer(&tepe, 0, &tepe_baytlari);
-
-    let indeks_baytlari = indeks_baytlari();
-    let indeks = aygit.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("Tgame 3B Küp İndeks Tamponu"),
-        size: KUP_INDEKS_TAMPON_BOYUTU,
-        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-    kuyruk.write_buffer(&indeks, 0, &indeks_baytlari);
-
-    MeshTamponlari { tepe, indeks }
-}
-
 pub(super) fn ornek_tamponu_olustur(aygit: &wgpu::Device, boyut: u64) -> wgpu::Buffer {
     aygit.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("Tgame 3B Küp Örnek Tamponu"),
+        label: Some("Tgame 3B Mesh Örnek Tamponu"),
         size: boyut.max(ORNEK_ADIMI_GPU),
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
@@ -90,11 +57,11 @@ pub(super) fn cizim_hatti_olustur(
     kamera_yerlesimi: &wgpu::BindGroupLayout,
 ) -> wgpu::RenderPipeline {
     let golgelendirici = aygit.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("Tgame 3B Küp Gölgelendiricisi"),
-        source: wgpu::ShaderSource::Wgsl(KUP_GOLGELENDIRICISI.into()),
+        label: Some("Tgame 3B Genel Mesh Gölgelendiricisi"),
+        source: wgpu::ShaderSource::Wgsl(MESH_GOLGELENDIRICISI.into()),
     });
     let cizim_hatti_yerlesimi = aygit.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("Tgame 3B Çizim Hattı Yerleşimi"),
+        label: Some("Tgame 3B Genel Mesh Çizim Hattı Yerleşimi"),
         bind_group_layouts: &[Some(kamera_yerlesimi)],
         immediate_size: 0,
     });
@@ -115,7 +82,7 @@ pub(super) fn cizim_hatti_olustur(
     };
 
     aygit.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Tgame Derinlikli Toplu Küp Çizim Hattı"),
+        label: Some("Tgame Derinlikli Toplu Genel Mesh Çizim Hattı"),
         layout: Some(&cizim_hatti_yerlesimi),
         vertex: wgpu::VertexState {
             module: &golgelendirici,
@@ -150,11 +117,11 @@ pub(super) fn cizim_hatti_olustur(
 
 #[cfg(test)]
 mod testler {
-    use super::KUP_GOLGELENDIRICISI;
+    use super::MESH_GOLGELENDIRICISI;
 
     #[test]
-    fn kup_golgelendiricisi_perspektif_ve_aydinlatma_icerir() {
-        assert!(KUP_GOLGELENDIRICISI.contains("gorunum_izdusum"));
-        assert!(KUP_GOLGELENDIRICISI.contains("isik_yonu"));
+    fn mesh_golgelendiricisi_perspektif_ve_aydinlatma_icerir() {
+        assert!(MESH_GOLGELENDIRICISI.contains("gorunum_izdusum"));
+        assert!(MESH_GOLGELENDIRICISI.contains("isik_yonu"));
     }
 }
