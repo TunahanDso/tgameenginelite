@@ -10,7 +10,7 @@ permissions:
 jobs:
   denetim:
     if: github.actor != 'github-actions[bot]'
-    name: Pedantik Clippy tanısı
+    name: Büyük sürüm kalite denetimi
     runs-on: windows-latest
 
     steps:
@@ -22,28 +22,65 @@ jobs:
       - name: Rust araç zincirini kur
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
+          components: rustfmt, clippy
 
-      - name: Clippy hatalarını kaydet
+      - name: Pedantik matris adlarını düzelt
         shell: pwsh
         run: |
-          $satirlar = cargo clippy --workspace --all-targets --all-features --message-format=json -- -D warnings 2>$null
-          $hatalar = [System.Collections.Generic.List[string]]::new()
-          foreach ($satir in $satirlar) {
-            try { $mesaj = $satir | ConvertFrom-Json } catch { continue }
-            if ($mesaj.reason -eq 'compiler-message' -and $mesaj.message.level -eq 'error') {
-              $hatalar.Add([string]$mesaj.message.rendered)
-            }
-          }
-          if ($hatalar.Count -eq 0) { $hatalar.Add('CLIPPY_TEMIZ') }
-          [IO.File]::WriteAllText(
-            'clippy-hatalari.txt',
-            ($hatalar -join "`n`n"),
-            [Text.UTF8Encoding]::new($false)
-          )
+          $yol = 'crates/tgame-matematik/src/ucboyut.rs'
+          $icerik = [IO.File]::ReadAllText($yol)
+          $eski = [string]::Join("`n", @(
+            '        let d = self.degerler;',
+            '        let x = d[0] * nokta.x + d[4] * nokta.y + d[8] * nokta.z + d[12];',
+            '        let y = d[1] * nokta.x + d[5] * nokta.y + d[9] * nokta.z + d[13];',
+            '        let z = d[2] * nokta.x + d[6] * nokta.y + d[10] * nokta.z + d[14];',
+            '        let w = d[3] * nokta.x + d[7] * nokta.y + d[11] * nokta.z + d[15];',
+            '        if w.abs() > f32::EPSILON && (w - 1.0).abs() > f32::EPSILON {',
+            '            Vektor3::yeni(x / w, y / w, z / w)',
+            '        } else {',
+            '            Vektor3::yeni(x, y, z)',
+            '        }'
+          ))
+          $yeni = [string]::Join("`n", @(
+            '        let degerler = self.degerler;',
+            '        let donusturulmus_x =',
+            '            degerler[0] * nokta.x + degerler[4] * nokta.y + degerler[8] * nokta.z + degerler[12];',
+            '        let donusturulmus_y =',
+            '            degerler[1] * nokta.x + degerler[5] * nokta.y + degerler[9] * nokta.z + degerler[13];',
+            '        let donusturulmus_z =',
+            '            degerler[2] * nokta.x + degerler[6] * nokta.y + degerler[10] * nokta.z + degerler[14];',
+            '        let homojen_w =',
+            '            degerler[3] * nokta.x + degerler[7] * nokta.y + degerler[11] * nokta.z + degerler[15];',
+            '        if homojen_w.abs() > f32::EPSILON && (homojen_w - 1.0).abs() > f32::EPSILON {',
+            '            Vektor3::yeni(',
+            '                donusturulmus_x / homojen_w,',
+            '                donusturulmus_y / homojen_w,',
+            '                donusturulmus_z / homojen_w,',
+            '            )',
+            '        } else {',
+            '            Vektor3::yeni(donusturulmus_x, donusturulmus_y, donusturulmus_z)',
+            '        }'
+          ))
+          $icerik = $icerik.Replace($eski, $yeni)
+          [IO.File]::WriteAllText($yol, $icerik, [Text.UTF8Encoding]::new($false))
+          cargo fmt --all
+          Remove-Item 'clippy-hatalari.txt' -ErrorAction SilentlyContinue
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add clippy-hatalari.txt
-          git commit -m "Clippy tanı sonuçlarını kaydet"
-          git push origin HEAD:agent/ilk-moduler-iskelet
-          if ($hatalar[0] -ne 'CLIPPY_TEMIZ') { exit 1 }
+          git add -A -- $yol clippy-hatalari.txt
+          if (git status --porcelain) {
+            git commit -m "Matris dönüşüm adlarını pedantik biçimde açıkla"
+            git push origin HEAD:agent/ilk-moduler-iskelet
+          }
+
+      - name: Biçimi denetle
+        run: cargo fmt --all --check
+
+      - name: Workspace'i denetle
+        run: cargo check --workspace --all-targets
+
+      - name: Clippy denetimini çalıştır
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Testleri çalıştır
+        run: cargo test --workspace --all-targets --all-features
