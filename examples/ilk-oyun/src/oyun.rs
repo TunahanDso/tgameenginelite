@@ -2,7 +2,7 @@ mod macera_icerigi;
 mod sahne;
 
 use macera_icerigi::{MaceraKimlikleri, macerayi_olustur};
-use sahne::{OYUNCU_OLCEGI, SahneKurulumu, sahneyi_olustur};
+use sahne::{SahneKurulumu, sahneyi_olustur};
 use tgame::onsoz::{
     Dunya, FizikDunyasi, Girdi, GorevAsamasi, GorevIlerlemesi, KayitYoneticisi, Macera, Oyun,
     OyunAkisi, OyunSonucu, Sahne, SahneKimligi, Tus, VarlikKimligi, Vektor3, Zaman,
@@ -164,7 +164,7 @@ impl DemoDurumu {
             self.etkilesimi_isle(macera, oyuncu_konumu);
         }
         self.kayit_girdisini_isle(girdi, dunya, macera);
-        self.kontrol_girdisini_isle(girdi, macera);
+        Self::kontrol_girdisini_isle(girdi, macera);
         if girdi.bu_kare_basildi_mi(Tus::Sekme) {
             self.durum_yazdir(macera);
         }
@@ -189,7 +189,7 @@ impl DemoDurumu {
         }
     }
 
-    fn kontrol_girdisini_isle(&self, girdi: &Girdi, macera: &mut Macera) {
+    fn kontrol_girdisini_isle(girdi: &Girdi, macera: &mut Macera) {
         if !girdi.bu_kare_basildi_mi(Tus::R) {
             return;
         }
@@ -247,18 +247,18 @@ impl DemoDurumu {
         let giris = kontrol
             .as_ref()
             .and_then(|kontrol| kontrol.giris_noktasi.as_deref())
-            .or_else(|| self.varsayilan_giris(macera));
-        let konum = giris
-            .and_then(|ad| macera.etkin_giris_konumu(ad))
+            .unwrap_or_else(|| self.varsayilan_giris(macera));
+        let konum = macera
+            .etkin_giris_konumu(giris)
             .unwrap_or(Vektor3::yeni(0.0, 2.5, 3.0));
         self.oyuncuyu_tasi(dunya, konum);
     }
 
-    fn varsayilan_giris(&self, macera: &Macera) -> Option<&'static str> {
+    fn varsayilan_giris(&self, macera: &Macera) -> &'static str {
         if macera.etkin_sahne() == Some(&self.kimlikler.mahzen) {
-            Some("sunak")
+            "sunak"
         } else {
-            Some("baslangic")
+            "baslangic"
         }
     }
 
@@ -469,7 +469,7 @@ mod testler {
             .alanlari_guncelle(Vektor3::yeni(0.0, 0.5, -4.4))
             .expect("Tapınak alanı çalışmalı.");
         macera
-            .olay_yayinla(OyunOlayi::DusmanYenildi {
+            .olay_yayinla(tgame::onsoz::OyunOlayi::DusmanYenildi {
                 dusman: "Taş Muhafız".to_owned(),
             })
             .expect("Muhafız olayı işlenmeli.");
