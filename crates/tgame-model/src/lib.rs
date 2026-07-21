@@ -464,7 +464,7 @@ impl ModelVerisi {
         if let Some(sahne) = belge.default_scene().or_else(|| belge.scenes().next()) {
             for dugum in sahne.nodes() {
                 dugum_orneklerini_topla(
-                    dugum,
+                    &dugum,
                     Matris4::BIRIM,
                     &primitive_eslemeleri,
                     &mut ornekler,
@@ -505,7 +505,7 @@ impl ModelVerisi {
 }
 
 fn dugum_orneklerini_topla(
-    dugum: gltf::Node<'_>,
+    dugum: &gltf::Node<'_>,
     ebeveyn_matrisi: Matris4,
     primitive_eslemeleri: &BTreeMap<(usize, usize), usize>,
     hedef: &mut Vec<ModelOrnegi>,
@@ -525,7 +525,7 @@ fn dugum_orneklerini_topla(
         }
     }
     for cocuk in dugum.children() {
-        dugum_orneklerini_topla(cocuk, dunya_matrisi, primitive_eslemeleri, hedef)?;
+        dugum_orneklerini_topla(&cocuk, dunya_matrisi, primitive_eslemeleri, hedef)?;
     }
     Ok(())
 }
