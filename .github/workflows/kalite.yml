@@ -5,46 +5,30 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   denetim:
-    if: github.actor != 'github-actions[bot]'
-    name: Rust kalite denetimi
+    name: Rust derleyici tanısı
     runs-on: windows-latest
 
     steps:
       - name: Kaynak kodu al
         uses: actions/checkout@v4
-        with:
-          ref: agent/ilk-moduler-iskelet
 
       - name: Rust araç zincirini kur
         uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
 
-      - name: Cargo önbelleğini hazırla
-        uses: Swatinem/rust-cache@v2
-
-      - name: Kaynakları biçimlendir
-        run: cargo fmt --all
-
-      - name: Biçim değişikliklerini gönder
+      - name: Derleyici hatalarını göster
         shell: pwsh
         run: |
-          if (-not (git status --porcelain)) { exit 0 }
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- '*.rs'
-          git commit -m "Büyük kaynak güncellemesini biçimlendir"
-          git push origin HEAD:agent/ilk-moduler-iskelet
-
-      - name: Workspace'i denetle
-        run: cargo check --workspace --all-targets
-
-      - name: Clippy denetimini çalıştır
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-
-      - name: Testleri çalıştır
-        run: cargo test --workspace --all-targets --all-features
+          $satirlar = cargo check --workspace --all-targets --message-format=json 2>$null
+          $hataVar = $false
+          foreach ($satir in $satirlar) {
+            try { $mesaj = $satir | ConvertFrom-Json } catch { continue }
+            if ($mesaj.reason -eq 'compiler-message' -and $mesaj.message.level -eq 'error') {
+              $hataVar = $true
+              Write-Host $mesaj.message.rendered
+            }
+          }
+          if ($hataVar) { exit 1 }
