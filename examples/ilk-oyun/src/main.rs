@@ -1,6 +1,6 @@
 use tgame::onsoz::{
-    Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Kamera3B, Oyun, OyunAkisi, OyunSonucu, Renk,
-    Sahne, Tus, Varlik, VarlikKimligi, Vektor3,
+    Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Girdi, Kamera3B, Oyun, OyunAkisi,
+    OyunSonucu, Renk, Sahne, Tus, Varlik, VarlikKimligi, Vektor3, Zaman,
 };
 
 const OYUNCU_HIZI: f32 = 4.8;
@@ -10,116 +10,166 @@ const KLAVYE_KAMERA_HIZI: f32 = 1.5;
 const KAMERA_UZAKLIGI: f32 = 7.5;
 const OYUNCU_OLCEGI: Vektor3 = Vektor3::yeni(0.75, 0.75, 0.75);
 
+struct OyunDurumu {
+    fizik: FizikDunyasi,
+    oyuncu: VarlikKimligi,
+    merkez: VarlikKimligi,
+    kamera_yatay: f32,
+    kamera_dikey: f32,
+}
+
+impl OyunDurumu {
+    fn yeni(fizik: FizikDunyasi, oyuncu: VarlikKimligi, merkez: VarlikKimligi) -> Self {
+        Self {
+            fizik,
+            oyuncu,
+            merkez,
+            kamera_yatay: 0.0,
+            kamera_dikey: 0.35,
+        }
+    }
+
+    fn guncelle(&mut self, girdi: &Girdi, zaman: &Zaman, dunya: &mut Dunya) -> OyunAkisi {
+        let kare_saniyesi = zaman.kare_saniyesi().min(0.05);
+        self.kamera_acisini_guncelle(girdi, kare_saniyesi);
+        let yon = self.hareket_yonu(girdi);
+        let oyuncu_konumu = self.oyuncuyu_guncelle(girdi, zaman, dunya, yon);
+        self.merkezi_dondur(dunya, kare_saniyesi);
+        self.kamerayi_yerlestir(dunya, oyuncu_konumu);
+        self.durum_yazdir(girdi, zaman, oyuncu_konumu);
+
+        if girdi.bu_kare_basildi_mi(Tus::Kacis) {
+            OyunAkisi::Kapat
+        } else {
+            OyunAkisi::DevamEt
+        }
+    }
+
+    fn kamera_acisini_guncelle(&mut self, girdi: &Girdi, kare_saniyesi: f32) {
+        let fare = girdi.fare_hareketi();
+        self.kamera_yatay -= fare.x * FARE_HASSASIYETI;
+        self.kamera_dikey -= fare.y * FARE_HASSASIYETI;
+
+        if girdi.basili_mi(Tus::Sol) {
+            self.kamera_yatay -= KLAVYE_KAMERA_HIZI * kare_saniyesi;
+        }
+        if girdi.basili_mi(Tus::Sag) {
+            self.kamera_yatay += KLAVYE_KAMERA_HIZI * kare_saniyesi;
+        }
+        if girdi.basili_mi(Tus::Yukari) {
+            self.kamera_dikey += KLAVYE_KAMERA_HIZI * kare_saniyesi;
+        }
+        if girdi.basili_mi(Tus::Asagi) {
+            self.kamera_dikey -= KLAVYE_KAMERA_HIZI * kare_saniyesi;
+        }
+        self.kamera_dikey = self.kamera_dikey.clamp(-0.65, 1.05);
+    }
+
+    fn hareket_yonu(&self, girdi: &Girdi) -> Vektor3 {
+        let ileri = Vektor3::yeni(-self.kamera_yatay.sin(), 0.0, -self.kamera_yatay.cos());
+        let sag = Vektor3::yeni(self.kamera_yatay.cos(), 0.0, -self.kamera_yatay.sin());
+        let mut yon = Vektor3::SIFIR;
+
+        if girdi.basili_mi(Tus::W) {
+            yon += ileri;
+        }
+        if girdi.basili_mi(Tus::S) {
+            yon -= ileri;
+        }
+        if girdi.basili_mi(Tus::A) {
+            yon -= sag;
+        }
+        if girdi.basili_mi(Tus::D) {
+            yon += sag;
+        }
+
+        yon.birim()
+    }
+
+    fn oyuncuyu_guncelle(
+        &mut self,
+        girdi: &Girdi,
+        zaman: &Zaman,
+        dunya: &mut Dunya,
+        yon: Vektor3,
+    ) -> Vektor3 {
+        {
+            let oyuncu_govdesi = self
+                .fizik
+                .govde_mut(self.oyuncu)
+                .expect("Oyuncu fizik gövdesi oyun boyunca kalmalı.");
+            oyuncu_govdesi.yatay_hizi_ayarla(yon * OYUNCU_HIZI);
+            if girdi.bu_kare_basildi_mi(Tus::Bosluk) {
+                oyuncu_govdesi.ziplat(ZIPLAMA_HIZI);
+            }
+        }
+
+        self.fizik.guncelle(dunya, zaman.kare_suresi());
+        let oyuncu = dunya
+            .varlik_mut(self.oyuncu)
+            .expect("Oyuncu varlığı oyun boyunca kalmalı.");
+        oyuncu.donusumu3b_mut().donus_radyan.y = self.kamera_yatay;
+        oyuncu.donusumu3b().konum
+    }
+
+    fn merkezi_dondur(&self, dunya: &mut Dunya, kare_saniyesi: f32) {
+        dunya
+            .varlik_mut(self.merkez)
+            .expect("Merkez küp oyun boyunca kalmalı.")
+            .donusumu3b_mut()
+            .dondur(Vektor3::yeni(
+                0.25 * kare_saniyesi,
+                0.7 * kare_saniyesi,
+                0.15 * kare_saniyesi,
+            ));
+    }
+
+    fn kamerayi_yerlestir(&self, dunya: &mut Dunya, oyuncu_konumu: Vektor3) {
+        let yatay_uzaklik = self.kamera_dikey.cos() * KAMERA_UZAKLIGI;
+        let kamera_konumu = oyuncu_konumu
+            + Vektor3::yeni(
+                self.kamera_yatay.sin() * yatay_uzaklik,
+                1.2 + self.kamera_dikey.sin() * KAMERA_UZAKLIGI,
+                self.kamera_yatay.cos() * yatay_uzaklik,
+            );
+        let kamera = dunya.kamera3b_mut();
+        kamera.konum = kamera_konumu;
+        kamera.hedef = oyuncu_konumu + Vektor3::YUKARI * 0.3;
+    }
+
+    fn durum_yazdir(&self, girdi: &Girdi, zaman: &Zaman, oyuncu_konumu: Vektor3) {
+        if !girdi.bu_kare_basildi_mi(Tus::Enter) {
+            return;
+        }
+
+        let govde = self
+            .fizik
+            .govde(self.oyuncu)
+            .expect("Oyuncu fizik gövdesi bulunmalı.");
+        println!(
+            "Oyuncu ({:.2}, {:.2}, {:.2}) — hız ({:.2}, {:.2}, {:.2}) — zeminde: {} — {}. kare",
+            oyuncu_konumu.x,
+            oyuncu_konumu.y,
+            oyuncu_konumu.z,
+            govde.hiz().x,
+            govde.hiz().y,
+            govde.hiz().z,
+            govde.zeminde_mi(),
+            zaman.kare_sayisi(),
+        );
+    }
+}
+
 fn main() -> OyunSonucu {
-    let (dunya, mut fizik, oyuncu, merkez) = sahneyi_olustur();
-    let mut kamera_yatay = 0.0_f32;
-    let mut kamera_dikey = 0.35_f32;
+    let (dunya, fizik, oyuncu, merkez) = sahneyi_olustur();
+    let mut durum = OyunDurumu::yeni(fizik, oyuncu, merkez);
 
     Oyun::yeni("Tgame 3B Fizik Dünyası")
         .cozunurluk(960, 640)
         .mod_klasoru("modlar")
         .sahne_ekle(Sahne::yeni("3B Fizik Başlangıcı"))
         .dunya(dunya)
-        .her_kare(move |girdi, zaman, dunya| {
-            let fare = girdi.fare_hareketi();
-            kamera_yatay -= fare.x * FARE_HASSASIYETI;
-            kamera_dikey = (kamera_dikey - fare.y * FARE_HASSASIYETI).clamp(-0.65, 1.05);
-
-            let kare_saniyesi = zaman.kare_saniyesi().min(0.05);
-            if girdi.basili_mi(Tus::Sol) {
-                kamera_yatay -= KLAVYE_KAMERA_HIZI * kare_saniyesi;
-            }
-            if girdi.basili_mi(Tus::Sag) {
-                kamera_yatay += KLAVYE_KAMERA_HIZI * kare_saniyesi;
-            }
-            if girdi.basili_mi(Tus::Yukari) {
-                kamera_dikey += KLAVYE_KAMERA_HIZI * kare_saniyesi;
-            }
-            if girdi.basili_mi(Tus::Asagi) {
-                kamera_dikey -= KLAVYE_KAMERA_HIZI * kare_saniyesi;
-            }
-            kamera_dikey = kamera_dikey.clamp(-0.65, 1.05);
-
-            let ileri = Vektor3::yeni(-kamera_yatay.sin(), 0.0, -kamera_yatay.cos());
-            let sag = Vektor3::yeni(kamera_yatay.cos(), 0.0, -kamera_yatay.sin());
-            let mut yon = Vektor3::SIFIR;
-            if girdi.basili_mi(Tus::W) {
-                yon += ileri;
-            }
-            if girdi.basili_mi(Tus::S) {
-                yon -= ileri;
-            }
-            if girdi.basili_mi(Tus::A) {
-                yon -= sag;
-            }
-            if girdi.basili_mi(Tus::D) {
-                yon += sag;
-            }
-
-            let oyuncu_govdesi = fizik
-                .govde_mut(oyuncu)
-                .expect("Oyuncu fizik gövdesi oyun boyunca kalmalı.");
-            oyuncu_govdesi.yatay_hizi_ayarla(yon.birim() * OYUNCU_HIZI);
-            if girdi.bu_kare_basildi_mi(Tus::Bosluk) {
-                oyuncu_govdesi.ziplat(ZIPLAMA_HIZI);
-            }
-
-            fizik.guncelle(dunya, zaman.kare_suresi());
-
-            let oyuncu_konumu = dunya
-                .varlik(oyuncu)
-                .expect("Oyuncu varlığı oyun boyunca kalmalı.")
-                .donusumu3b()
-                .konum;
-            dunya
-                .varlik_mut(oyuncu)
-                .expect("Oyuncu varlığı oyun boyunca kalmalı.")
-                .donusumu3b_mut()
-                .donus_radyan.y = kamera_yatay;
-            dunya
-                .varlik_mut(merkez)
-                .expect("Merkez küp oyun boyunca kalmalı.")
-                .donusumu3b_mut()
-                .dondur(Vektor3::yeni(
-                    0.25 * kare_saniyesi,
-                    0.7 * kare_saniyesi,
-                    0.15 * kare_saniyesi,
-                ));
-
-            let yatay_uzaklik = kamera_dikey.cos() * KAMERA_UZAKLIGI;
-            let kamera_konumu = oyuncu_konumu
-                + Vektor3::yeni(
-                    kamera_yatay.sin() * yatay_uzaklik,
-                    1.2 + kamera_dikey.sin() * KAMERA_UZAKLIGI,
-                    kamera_yatay.cos() * yatay_uzaklik,
-                );
-            let kamera = dunya.kamera3b_mut();
-            kamera.konum = kamera_konumu;
-            kamera.hedef = oyuncu_konumu + Vektor3::YUKARI * 0.3;
-
-            if girdi.bu_kare_basildi_mi(Tus::Enter) {
-                let govde = fizik
-                    .govde(oyuncu)
-                    .expect("Oyuncu fizik gövdesi bulunmalı.");
-                println!(
-                    "Oyuncu ({:.2}, {:.2}, {:.2}) — hız ({:.2}, {:.2}, {:.2}) — zeminde: {} — {}. kare",
-                    oyuncu_konumu.x,
-                    oyuncu_konumu.y,
-                    oyuncu_konumu.z,
-                    govde.hiz().x,
-                    govde.hiz().y,
-                    govde.hiz().z,
-                    govde.zeminde_mi(),
-                    zaman.kare_sayisi(),
-                );
-            }
-
-            if girdi.bu_kare_basildi_mi(Tus::Kacis) {
-                OyunAkisi::Kapat
-            } else {
-                OyunAkisi::DevamEt
-            }
-        })
+        .her_kare(move |girdi, zaman, dunya| durum.guncelle(girdi, zaman, dunya))
         .calistir()
 }
 
@@ -198,7 +248,8 @@ fn sutunlari_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) {
     for (konum, renk, yukseklik) in sutunlar {
         let olcek = Vektor3::yeni(0.8, yukseklik, 0.8);
         let kimlik = dunya.varlik_ekle(
-            Varlik::kup("Sütun", renk).donusum3b(Donusum3B::yeni().konum(konum).olcek(olcek)),
+            Varlik::kup("Sütun", renk)
+                .donusum3b(Donusum3B::yeni().konum(konum).olcek(olcek)),
         );
         fizik.govde_ekle(FizikGovdesi::statik_kup(kimlik, olcek));
     }
