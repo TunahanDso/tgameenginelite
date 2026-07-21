@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use num_traits::ToPrimitive;
 use tgame_cekirdek::{Cozunurluk, OyunHatasi, OyunSonucu};
 use tgame_girdi::{Girdi, Tus};
 use tgame_grafik::Grafik;
@@ -10,10 +11,10 @@ use tgame_zaman::{Zaman, ZamanYoneticisi};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
-    event::{ElementState, WindowEvent},
+    event::{DeviceEvent, DeviceId, ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     keyboard::{KeyCode, PhysicalKey},
-    window::{Window, WindowId},
+    window::{CursorGrabMode, Window, WindowId},
 };
 
 /// Her kare sonunda motorun nasıl devam edeceğini belirtir.
@@ -92,6 +93,7 @@ struct Uygulama {
     zaman: ZamanYoneticisi,
     kare_gorevi: KareGorevi,
     hata: Option<OyunHatasi>,
+    odakli: bool,
 }
 
 impl Uygulama {
@@ -105,6 +107,7 @@ impl Uygulama {
             zaman: ZamanYoneticisi::yeni(),
             kare_gorevi,
             hata: None,
+            odakli: true,
         }
     }
 
@@ -146,9 +149,27 @@ impl ApplicationHandler for Uygulama {
             }
         };
 
+        fareyi_yakala(&pencere, true);
         pencere.request_redraw();
         self.pencere = Some(pencere);
         self.grafik = Some(grafik);
+    }
+
+    fn device_event(
+        &mut self,
+        _olay_dongusu: &ActiveEventLoop,
+        _aygit_kimligi: DeviceId,
+        olay: DeviceEvent,
+    ) {
+        if !self.odakli {
+            return;
+        }
+
+        if let DeviceEvent::MouseMotion { delta } = olay {
+            let x = delta.0.to_f32().unwrap_or_default();
+            let y = delta.1.to_f32().unwrap_or_default();
+            self.girdi.fare_hareketini_ekle(x, y);
+        }
     }
 
     fn window_event(
@@ -167,6 +188,10 @@ impl ApplicationHandler for Uygulama {
 
         match olay {
             WindowEvent::CloseRequested => olay_dongusu.exit(),
+            WindowEvent::Focused(odakli) => {
+                self.odakli = odakli;
+                fareyi_yakala(pencere, odakli);
+            }
             WindowEvent::KeyboardInput { event, .. } => {
                 if let PhysicalKey::Code(kod) = event.physical_key {
                     if let Some(tus) = tusa_cevir(kod) {
@@ -206,6 +231,18 @@ impl ApplicationHandler for Uygulama {
             }
             _ => {}
         }
+    }
+}
+
+fn fareyi_yakala(pencere: &Window, yakala: bool) {
+    if yakala {
+        if pencere.set_cursor_grab(CursorGrabMode::Locked).is_err() {
+            let _ = pencere.set_cursor_grab(CursorGrabMode::Confined);
+        }
+        pencere.set_cursor_visible(false);
+    } else {
+        let _ = pencere.set_cursor_grab(CursorGrabMode::None);
+        pencere.set_cursor_visible(true);
     }
 }
 
