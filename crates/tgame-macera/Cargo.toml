@@ -1,0 +1,14 @@
+[package]
+name = "tgame-macera"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+tgame-cekirdek = { path = "../tgame-cekirdek" }
+tgame-matematik = { path = "../tgame-matematik" }
+
+[lints]
+workspace = true
