@@ -1,7 +1,9 @@
 name: Geçici Doku Biçim
 
 on:
-  pull_request:
+  push:
+    branches:
+      - agent/ilk-moduler-iskelet
 
 permissions:
   contents: write
