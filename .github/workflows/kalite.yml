@@ -24,52 +24,96 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Pedantik matris adlarını düzelt
+      - name: Malzeme ve culling stres sahnesini uygula
         shell: pwsh
         run: |
-          $yol = 'crates/tgame-matematik/src/ucboyut.rs'
+          $yol = 'examples/ilk-oyun/src/main.rs'
           $icerik = [IO.File]::ReadAllText($yol)
-          $eski = [string]::Join("`n", @(
-            '        let d = self.degerler;',
-            '        let x = d[0] * nokta.x + d[4] * nokta.y + d[8] * nokta.z + d[12];',
-            '        let y = d[1] * nokta.x + d[5] * nokta.y + d[9] * nokta.z + d[13];',
-            '        let z = d[2] * nokta.x + d[6] * nokta.y + d[10] * nokta.z + d[14];',
-            '        let w = d[3] * nokta.x + d[7] * nokta.y + d[11] * nokta.z + d[15];',
-            '        if w.abs() > f32::EPSILON && (w - 1.0).abs() > f32::EPSILON {',
-            '            Vektor3::yeni(x / w, y / w, z / w)',
-            '        } else {',
-            '            Vektor3::yeni(x, y, z)',
-            '        }'
+          $icerik = $icerik -replace 'Kamera3B, MeshKimligi', 'Kamera3B, MalzemeKimligi, MalzemeVerisi, MeshKimligi'
+
+          $kurulumDeseni = '    let piramit_mesh = piramit_meshini_yukle\(&mut dunya\)\?;\r?\n    let piramitler = piramitleri_ekle\(&mut dunya, &mut fizik, piramit_mesh\);'
+          $yeniKurulum = [string]::Join("`n", @(
+            '    let piramit_mesh = piramit_meshini_yukle(&mut dunya)?;',
+            '    let alternatif_malzeme = dunya.malzeme_ekle(MalzemeVerisi::yeni(Renk::yeni(',
+            '        0.08, 0.85, 1.0, 1.0,',
+            '    )));',
+            '    let piramitler = piramitleri_ekle(',
+            '        &mut dunya,',
+            '        &mut fizik,',
+            '        piramit_mesh,',
+            '        alternatif_malzeme,',
+            '    );',
+            '    gorunurluk_stres_sahnesi_ekle(&mut dunya, piramit_mesh);'
           ))
-          $yeni = [string]::Join("`n", @(
-            '        let degerler = self.degerler;',
-            '        let donusturulmus_x =',
-            '            degerler[0] * nokta.x + degerler[4] * nokta.y + degerler[8] * nokta.z + degerler[12];',
-            '        let donusturulmus_y =',
-            '            degerler[1] * nokta.x + degerler[5] * nokta.y + degerler[9] * nokta.z + degerler[13];',
-            '        let donusturulmus_z =',
-            '            degerler[2] * nokta.x + degerler[6] * nokta.y + degerler[10] * nokta.z + degerler[14];',
-            '        let homojen_w =',
-            '            degerler[3] * nokta.x + degerler[7] * nokta.y + degerler[11] * nokta.z + degerler[15];',
-            '        if homojen_w.abs() > f32::EPSILON && (homojen_w - 1.0).abs() > f32::EPSILON {',
-            '            Vektor3::yeni(',
-            '                donusturulmus_x / homojen_w,',
-            '                donusturulmus_y / homojen_w,',
-            '                donusturulmus_z / homojen_w,',
+          $icerik = [regex]::Replace($icerik, $kurulumDeseni, $yeniKurulum)
+
+          $imzaDeseni = 'fn piramitleri_ekle\(\r?\n    dunya: &mut Dunya,\r?\n    fizik: &mut FizikDunyasi,\r?\n    mesh: MeshKimligi,\r?\n\) -> Vec<VarlikKimligi> \{'
+          $yeniImza = [string]::Join("`n", @(
+            'fn piramitleri_ekle(',
+            '    dunya: &mut Dunya,',
+            '    fizik: &mut FizikDunyasi,',
+            '    mesh: MeshKimligi,',
+            '    alternatif_malzeme: MalzemeKimligi,',
+            ') -> Vec<VarlikKimligi> {'
+          ))
+          $icerik = [regex]::Replace($icerik, $imzaDeseni, $yeniImza)
+
+          $donguDeseni = '(?s)    for \(konum, renk\) in piramitler \{.*?        kimlikler\.push\(kimlik\);'
+          $yeniDongu = [string]::Join("`n", @(
+            '    for (sira, (konum, renk)) in piramitler.into_iter().enumerate() {',
+            '        let varlik = if sira.is_multiple_of(3) {',
+            '            Varlik::mesh_malzemeli(',
+            '                "Alternatif Malzemeli Piramit",',
+            '                mesh,',
+            '                alternatif_malzeme,',
+            '                renk,',
             '            )',
             '        } else {',
-            '            Vektor3::yeni(donusturulmus_x, donusturulmus_y, donusturulmus_z)',
-            '        }'
+            '            Varlik::mesh("Dokulu glTF Piramit", mesh, renk)',
+            '        };',
+            '        let kimlik = dunya.varlik_ekle(',
+            '            varlik.donusum3b(Donusum3B::yeni().konum(konum).olcek(goruntu_olcegi)),',
+            '        );',
+            '        kimlikler.push(kimlik);'
           ))
-          $icerik = $icerik.Replace($eski, $yeni)
+          $icerik = [regex]::Replace($icerik, $donguDeseni, $yeniDongu)
+
+          if (-not $icerik.Contains('fn gorunurluk_stres_sahnesi_ekle')) {
+            $stres = [string]::Join("`n", @(
+              'fn gorunurluk_stres_sahnesi_ekle(dunya: &mut Dunya, mesh: MeshKimligi) {',
+              '    let olcek = Vektor3::yeni(0.35, 0.35, 0.35);',
+              '    for sira in 0_u16..256 {',
+              '        let sutun = f32::from(sira % 16);',
+              '        let satir = f32::from(sira / 16);',
+              '        dunya.varlik_ekle(',
+              '            Varlik::mesh("Frustum Dışı Piramit", mesh, Renk::BEYAZ).donusum3b(',
+              '                Donusum3B::yeni()',
+              '                    .konum(Vektor3::yeni(400.0 + sutun * 2.0, -0.58, -satir * 2.0))',
+              '                    .olcek(olcek),',
+              '            ),',
+              '        );',
+              '    }',
+              '}',
+              '',
+              ''
+            ))
+            $icerik = $icerik.Replace(
+              'fn zemin_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) {',
+              $stres + 'fn zemin_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) {'
+            )
+          }
+
+          if (-not $icerik.Contains('MalzemeKimligi')) { throw 'Malzeme kimliği içe aktarımı uygulanamadı.' }
+          if (-not $icerik.Contains('alternatif_malzeme: MalzemeKimligi')) { throw 'Malzeme parametresi uygulanamadı.' }
+          if (-not $icerik.Contains('fn gorunurluk_stres_sahnesi_ekle')) { throw 'Culling stres sahnesi uygulanamadı.' }
+
           [IO.File]::WriteAllText($yol, $icerik, [Text.UTF8Encoding]::new($false))
           cargo fmt --all
-          Remove-Item 'clippy-hatalari.txt' -ErrorAction SilentlyContinue
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A -- $yol clippy-hatalari.txt
+          git add -- $yol
           if (git status --porcelain) {
-            git commit -m "Matris dönüşüm adlarını pedantik biçimde açıkla"
+            git commit -m "Aynı mesh için bağımsız malzeme ve culling stresi ekle"
             git push origin HEAD:agent/ilk-moduler-iskelet
           }
 
