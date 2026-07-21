@@ -10,7 +10,7 @@ permissions:
 jobs:
   denetim:
     if: github.actor != 'github-actions[bot]'
-    name: Rust derleyici tanısı
+    name: Büyük sürüm kalite denetimi
     runs-on: windows-latest
 
     steps:
@@ -22,49 +22,130 @@ jobs:
       - name: Rust araç zincirini kur
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt
+          components: rustfmt, clippy
 
-      - name: Kesin kaynak düzeltmelerini uygula
+      - name: Büyük örnek sahnesini uygula
         shell: pwsh
         run: |
-          $varlikYolu = 'crates/tgame-varlik/src/lib.rs'
-          $varlik = [IO.File]::ReadAllText($varlikYolu)
-          $varlik = $varlik.Replace('Vektor3::new(', 'Vektor3::yeni(')
-          [IO.File]::WriteAllText($varlikYolu, $varlik, [Text.UTF8Encoding]::new($false))
+          $yol = 'examples/ilk-oyun/src/main.rs'
+          $icerik = [IO.File]::ReadAllText($yol)
 
-          $grafikYolu = 'crates/tgame-grafik/src/ucboyut/mod.rs'
-          $grafik = [IO.File]::ReadAllText($grafikYolu)
-          $grafik = $grafik.Replace('_beyaz_doku', 'beyaz_doku')
-          [IO.File]::WriteAllText($grafikYolu, $grafik, [Text.UTF8Encoding]::new($false))
+          $eskiIceAktarma = @'
+use tgame::onsoz::{
+    Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Girdi, Kamera3B, MeshKimligi, ModelVerisi, Oyun,
+    OyunAkisi, OyunHatasi, OyunSonucu, Renk, Sahne, Tus, Varlik, VarlikKimligi, Vektor3, Zaman,
+};
+'@
+          $yeniIceAktarma = @'
+use tgame::onsoz::{
+    Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Girdi, Kamera3B, MalzemeKimligi,
+    MalzemeVerisi, MeshKimligi, ModelVerisi, Oyun, OyunAkisi, OyunHatasi, OyunSonucu, Renk,
+    Sahne, Tus, Varlik, VarlikKimligi, Vektor3, Zaman,
+};
+'@
+          $icerik = $icerik.Replace($eskiIceAktarma, $yeniIceAktarma)
 
+          $eskiKurulum = @'
+    let piramit_mesh = piramit_meshini_yukle(&mut dunya)?;
+    let piramitler = piramitleri_ekle(&mut dunya, &mut fizik, piramit_mesh);
+'@
+          $yeniKurulum = @'
+    let piramit_mesh = piramit_meshini_yukle(&mut dunya)?;
+    let alternatif_malzeme = dunya.malzeme_ekle(MalzemeVerisi::yeni(Renk::yeni(
+        0.08, 0.85, 1.0, 1.0,
+    )));
+    let piramitler = piramitleri_ekle(
+        &mut dunya,
+        &mut fizik,
+        piramit_mesh,
+        alternatif_malzeme,
+    );
+    gorunurluk_stres_sahnesi_ekle(&mut dunya, piramit_mesh);
+'@
+          $icerik = $icerik.Replace($eskiKurulum, $yeniKurulum)
+
+          $eskiImza = @'
+fn piramitleri_ekle(
+    dunya: &mut Dunya,
+    fizik: &mut FizikDunyasi,
+    mesh: MeshKimligi,
+) -> Vec<VarlikKimligi> {
+'@
+          $yeniImza = @'
+fn piramitleri_ekle(
+    dunya: &mut Dunya,
+    fizik: &mut FizikDunyasi,
+    mesh: MeshKimligi,
+    alternatif_malzeme: MalzemeKimligi,
+) -> Vec<VarlikKimligi> {
+'@
+          $icerik = $icerik.Replace($eskiImza, $yeniImza)
+
+          $eskiDongu = @'
+    for (konum, renk) in piramitler {
+        let kimlik = dunya.varlik_ekle(
+            Varlik::mesh("glTF Piramit", mesh, renk)
+                .donusum3b(Donusum3B::yeni().konum(konum).olcek(goruntu_olcegi)),
+        );
+        kimlikler.push(kimlik);
+'@
+          $yeniDongu = @'
+    for (sira, (konum, renk)) in piramitler.into_iter().enumerate() {
+        let varlik = if sira.is_multiple_of(3) {
+            Varlik::mesh_malzemeli("Alternatif Malzemeli Piramit", mesh, alternatif_malzeme, renk)
+        } else {
+            Varlik::mesh("Dokulu glTF Piramit", mesh, renk)
+        };
+        let kimlik = dunya.varlik_ekle(
+            varlik.donusum3b(Donusum3B::yeni().konum(konum).olcek(goruntu_olcegi)),
+        );
+        kimlikler.push(kimlik);
+'@
+          $icerik = $icerik.Replace($eskiDongu, $yeniDongu)
+
+          $isaret = 'fn zemin_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) {'
+          $stres = @'
+fn gorunurluk_stres_sahnesi_ekle(dunya: &mut Dunya, mesh: MeshKimligi) {
+    let olcek = Vektor3::yeni(0.35, 0.35, 0.35);
+    for sira in 0_u16..256 {
+        let sutun = f32::from(sira % 16);
+        let satir = f32::from(sira / 16);
+        dunya.varlik_ekle(
+            Varlik::mesh("Frustum Dışı Piramit", mesh, Renk::BEYAZ).donusum3b(
+                Donusum3B::yeni()
+                    .konum(Vektor3::yeni(400.0 + sutun * 2.0, -0.58, -satir * 2.0))
+                    .olcek(olcek),
+            ),
+        );
+    }
+}
+
+'@
+          if (-not $icerik.Contains('fn gorunurluk_stres_sahnesi_ekle')) {
+            $icerik = $icerik.Replace($isaret, $stres + $isaret)
+          }
+
+          [IO.File]::WriteAllText($yol, $icerik, [Text.UTF8Encoding]::new($false))
           cargo fmt --all
           Remove-Item 'derleyici-hatalari.txt' -ErrorAction SilentlyContinue
+          Remove-Item '.github/workflows/gecici-buyuk-bicim.yml' -ErrorAction SilentlyContinue
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- $varlikYolu $grafikYolu derleyici-hatalari.txt
+          git add -- $yol derleyici-hatalari.txt .github/workflows/gecici-buyuk-bicim.yml
           if (git status --porcelain) {
-            git commit -m "Mega kaynak sözleşmelerini düzelt"
+            git commit -m "Bağımsız malzeme ve frustum stres sahnesi ekle"
             git push origin HEAD:agent/ilk-moduler-iskelet
           }
 
-      - name: Derleyici sonucunu kaydet
-        shell: pwsh
-        run: |
-          $satirlar = cargo check --workspace --all-targets --message-format=json 2>$null
-          $hatalar = [System.Collections.Generic.List[string]]::new()
-          foreach ($satir in $satirlar) {
-            try { $mesaj = $satir | ConvertFrom-Json } catch { continue }
-            if ($mesaj.reason -eq 'compiler-message' -and $mesaj.message.level -eq 'error') {
-              $hatalar.Add([string]$mesaj.message.rendered)
-            }
-          }
-          if ($hatalar.Count -eq 0) { $hatalar.Add('DERLEYICI_TEMIZ') }
-          [IO.File]::WriteAllText(
-            'derleyici-hatalari.txt',
-            ($hatalar -join "`n`n"),
-            [Text.UTF8Encoding]::new($false)
-          )
-          git add derleyici-hatalari.txt
-          git commit -m "Derleyici tanı sonuçlarını yenile"
-          git push origin HEAD:agent/ilk-moduler-iskelet
-          if ($hatalar[0] -ne 'DERLEYICI_TEMIZ') { exit 1 }
+      - name: Biçimi denetle
+        run: cargo fmt --all --check
+
+      - name: Workspace'i denetle
+        run: cargo check --workspace --all-targets
+
+      - name: Clippy denetimini çalıştır
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Testleri çalıştır
+        run: cargo test --workspace --all-targets --all-features
