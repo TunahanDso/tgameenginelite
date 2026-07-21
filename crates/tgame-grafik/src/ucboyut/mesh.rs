@@ -1,6 +1,4 @@
 pub(super) const TEPE_ADIMI_GPU: u64 = 24;
-pub(super) const KUP_TEPE_TAMPON_BOYUTU: u64 = 576;
-pub(super) const KUP_INDEKS_TAMPON_BOYUTU: u64 = 72;
 pub(super) const KUP_INDEKS_SAYISI: u32 = 36;
 pub(super) const TEPE_NITELIKLERI: [wgpu::VertexAttribute; 2] =
     wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
