@@ -94,24 +94,27 @@ impl Grafik {
     ///
     /// # Errors
     ///
-    /// GPU tamponu büyütülemezse, GPU yüzeyi kaybolur ve yeniden oluşturulamazsa
-    /// veya yüzey doğrulama hatası oluşursa [`OyunHatasi`] döndürür.
+    /// GPU mesh veya örnek tamponu oluşturulamazsa, GPU yüzeyi kaybolur ve yeniden
+    /// oluşturulamazsa ya da yüzey doğrulama hatası oluşursa [`OyunHatasi`] döndürür.
     pub fn ciz(&mut self, dunya: &Dunya) -> OyunSonucu {
-        let ornek_sayisi = match dunya.boyut() {
-            DunyaBoyutu::IkiBoyut => self.ikiboyut.hazirla(
+        let ikiboyut_ornek_sayisi = match dunya.boyut() {
+            DunyaBoyutu::IkiBoyut => Some(self.ikiboyut.hazirla(
                 &self.aygit,
                 &self.kuyruk,
                 dunya,
                 self.yapilandirma.width,
                 self.yapilandirma.height,
-            )?,
-            DunyaBoyutu::UcBoyut => self.ucboyut.hazirla(
-                &self.aygit,
-                &self.kuyruk,
-                dunya,
-                self.yapilandirma.width,
-                self.yapilandirma.height,
-            )?,
+            )?),
+            DunyaBoyutu::UcBoyut => {
+                self.ucboyut.hazirla(
+                    &self.aygit,
+                    &self.kuyruk,
+                    dunya,
+                    self.yapilandirma.width,
+                    self.yapilandirma.height,
+                )?;
+                None
+            }
         };
 
         let (kare, yeniden_yapilandir) = match self.yuzey.get_current_texture() {
@@ -145,12 +148,12 @@ impl Grafik {
 
         match dunya.boyut() {
             DunyaBoyutu::IkiBoyut => {
+                let ornek_sayisi = ikiboyut_ornek_sayisi.unwrap_or_default();
                 self.ikiboyut
                     .kaydet(&mut komut_kaydedici, &gorunum, ornek_sayisi);
             }
             DunyaBoyutu::UcBoyut => {
-                self.ucboyut
-                    .kaydet(&mut komut_kaydedici, &gorunum, ornek_sayisi);
+                self.ucboyut.kaydet(&mut komut_kaydedici, &gorunum);
             }
         }
 
