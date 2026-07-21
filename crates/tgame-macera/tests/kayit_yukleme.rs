@@ -44,7 +44,9 @@ fn uzun_oyun_durumu_yuvadan_eksiksiz_geri_yuklenir() {
         .baslangic_sahnesi_ayarla(&sahne)
         .expect("Başlangıç sahnesi ayarlanmalı.");
     macera.gorev_baslat(&gorev).expect("Görev başlamalı.");
-    macera.esya_ekle(&pusula, 1).expect("Görev eşyası eklenmeli.");
+    macera
+        .esya_ekle(&pusula, 1)
+        .expect("Görev eşyası eklenmeli.");
     macera.durum_mut().bayrak_ayarla("gecit_acildi", true);
     macera.durum_mut().sayac_ayarla("bulunan_sir", 7);
     macera
@@ -58,7 +60,9 @@ fn uzun_oyun_durumu_yuvadan_eksiksiz_geri_yuklenir() {
         macera.oynama_suresi_milisaniye()
     ));
     let kayitlar = KayitYoneticisi::yeni(&klasor, 3);
-    kayitlar.kaydet(1, &macera).expect("Macera diske kaydedilmeli.");
+    kayitlar
+        .kaydet(1, &macera)
+        .expect("Macera diske kaydedilmeli.");
     assert!(kayitlar.var_mi(1).expect("Kayıt yuvası sorgulanmalı."));
 
     let (mut yuklenen, _, _, _) = icerigi_tanimla();
