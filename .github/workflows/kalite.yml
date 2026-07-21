@@ -21,8 +21,33 @@ jobs:
 
       - name: Rust araç zincirini kur
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
 
-      - name: Derleyici hatalarını kaydet
+      - name: Kesin kaynak düzeltmelerini uygula
+        shell: pwsh
+        run: |
+          $varlikYolu = 'crates/tgame-varlik/src/lib.rs'
+          $varlik = [IO.File]::ReadAllText($varlikYolu)
+          $varlik = $varlik.Replace('Vektor3::new(', 'Vektor3::yeni(')
+          [IO.File]::WriteAllText($varlikYolu, $varlik, [Text.UTF8Encoding]::new($false))
+
+          $grafikYolu = 'crates/tgame-grafik/src/ucboyut/mod.rs'
+          $grafik = [IO.File]::ReadAllText($grafikYolu)
+          $grafik = $grafik.Replace('_beyaz_doku', 'beyaz_doku')
+          [IO.File]::WriteAllText($grafikYolu, $grafik, [Text.UTF8Encoding]::new($false))
+
+          cargo fmt --all
+          Remove-Item 'derleyici-hatalari.txt' -ErrorAction SilentlyContinue
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- $varlikYolu $grafikYolu derleyici-hatalari.txt
+          if (git status --porcelain) {
+            git commit -m "Mega kaynak sözleşmelerini düzelt"
+            git push origin HEAD:agent/ilk-moduler-iskelet
+          }
+
+      - name: Derleyici sonucunu kaydet
         shell: pwsh
         run: |
           $satirlar = cargo check --workspace --all-targets --message-format=json 2>$null
@@ -33,17 +58,13 @@ jobs:
               $hatalar.Add([string]$mesaj.message.rendered)
             }
           }
-          if ($hatalar.Count -eq 0) {
-            $hatalar.Add('DERLEYICI_TEMIZ')
-          }
+          if ($hatalar.Count -eq 0) { $hatalar.Add('DERLEYICI_TEMIZ') }
           [IO.File]::WriteAllText(
             'derleyici-hatalari.txt',
             ($hatalar -join "`n`n"),
             [Text.UTF8Encoding]::new($false)
           )
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add derleyici-hatalari.txt
-          git commit -m "Derleyici tanı sonuçlarını kaydet"
+          git commit -m "Derleyici tanı sonuçlarını yenile"
           git push origin HEAD:agent/ilk-moduler-iskelet
           if ($hatalar[0] -ne 'DERLEYICI_TEMIZ') { exit 1 }
