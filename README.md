@@ -2,7 +2,7 @@
 
 **Tgame Engine Lite**, Rust ile geliştirilen; Türkçe, editörsüz, modüler ve performans odaklı bir 2B/3B oyun motoru kütüphanesidir.
 
-Motor ayrı bir editör uygulaması açmaz. Oyun geliştiricisi `tgame` paketini Rust projesine ekler; dünyayı, varlıkları, kamerayı ve oyun döngüsünü Türkçe API ile kodlar.
+Motor ayrı bir editör uygulaması açmaz. Oyun geliştiricisi `tgame` paketini Rust projesine ekler; dünyayı, varlıkları, kamerayı, fiziği ve oyun döngüsünü Türkçe API ile kodlar.
 
 ## Bugünkü durum
 
@@ -11,7 +11,9 @@ Motor aynı çekirdekte iki grafik yolu çalıştırır:
 - Ortografik `Dunya::yeni()` ile 2B üçgen dünyası
 - Perspektif ve derinlik tamponlu `Dunya::yeni_3b()` ile 3B küp dünyası
 
-2B ve 3B varlıklar aynı `VarlikKimligi`, `Dunya`, girdi, zaman, pencere ve oyun döngüsü altyapısını paylaşır. Grafik katmanı dünyanın boyutuna göre doğru GPU pipeline'ını seçer.
+3B çekirdekte artık sabit zaman adımlı fizik, statik/dinamik AABB gövdeleri, yerçekimi, zeminde olma, zıplama, ham fare kamerası ve glTF/GLB dosyalarını genel mesh verisine çeviren model yükleme katmanı bulunur.
+
+> `tgame-model` şu anda modeli CPU tarafında doğrulanmış `MeshVerisi` olarak yükler. Yüklenen glTF mesh'lerini genel GPU mesh kayıt sisteminde çizmek bir sonraki grafik aşamasıdır.
 
 ## Temel kararlar
 
@@ -20,6 +22,7 @@ Motor aynı çekirdekte iki grafik yolu çalıştırır:
 - Kullanıcı API'si: Türkçe
 - Motor türü: Editörsüz, kütüphane tabanlı
 - Grafik: wgpu 30
+- Fizik: Sabit yaklaşık 60 Hz adım, eksenlere hizalı 3B çarpışma
 - Mimari: Bağımsız paketlere ayrılmış Cargo workspace
 - Öncelik: Performans, kalite, anlaşılabilirlik ve geriye dönük uyumluluk
 - Oyunlar: Baştan itibaren modlanabilir tasarlanacak
@@ -30,55 +33,52 @@ Motor aynı çekirdekte iki grafik yolu çalıştırır:
 
 - `tgame`: Oyun geliştiricisinin kullandığı Türkçe üst API
 - `tgame-cekirdek`: Ayarlar, çözünürlük, hata ve sonuç türleri
-- `tgame-girdi`: Türkçe fiziksel klavye tuşları ve karelik durumlar
+- `tgame-fizik`: Sabit zaman adımı, statik/dinamik gövdeler, AABB çarpışma, yerçekimi ve zıplama
+- `tgame-girdi`: Türkçe fiziksel klavye tuşları ve karelik ham fare hareketi
 - `tgame-grafik`: 2B/3B GPU pipeline'ları, instancing, indeksli mesh ve derinlik tamponu
 - `tgame-matematik`: `Vektor2`, `Vektor3`, `Matris4` ve `Renk`
-- `tgame-pencere`: İşletim sistemi penceresi ve olay döngüsü
+- `tgame-model`: Genel `MeshVerisi` ve glTF/GLB dosya yükleme altyapısı
+- `tgame-pencere`: İşletim sistemi penceresi, ham aygıt olayları ve imleç yakalama
 - `tgame-sahne`: Sahne tanımları
 - `tgame-mod`: Modlama sözleşmeleri ve mod kayıt sistemi
 - `tgame-varlik`: Kimlikli varlıklar, 2B/3B dönüşümler, görünümler, kameralar ve dünya
 - `tgame-zaman`: Kare süresi, toplam çalışma süresi ve kare sayacı
 
-## İlk 3B dünya
+## Sabit fizik örneği
 
 ```rust
-use tgame::onsoz::{Donusum3B, Dunya, Oyun, OyunAkisi, Renk, Varlik, Vektor3};
+use tgame::onsoz::{FizikDunyasi, FizikGovdesi, Varlik, Vektor3};
 
-let mut dunya = Dunya::yeni_3b();
-let oyuncu = dunya.varlik_ekle(
-    Varlik::kup("Oyuncu", Renk::SARI).donusum3b(
-        Donusum3B::yeni()
-            .konum(Vektor3::yeni(0.0, 0.0, 3.0))
-            .olcek(Vektor3::yeni(0.75, 0.75, 0.75)),
-    ),
-);
+let oyuncu = dunya.varlik_ekle(Varlik::kup("Oyuncu", Renk::SARI));
+let zemin = dunya.varlik_ekle(Varlik::kup("Zemin", Renk::YESIL));
 
-Oyun::yeni("3B Oyunum")
-    .dunya(dunya)
-    .her_kare(move |girdi, zaman, dunya| {
-        if let Some(varlik) = dunya.varlik_mut(oyuncu) {
-            varlik
-                .donusumu3b_mut()
-                .dondur(Vektor3::YUKARI * zaman.kare_saniyesi());
-        }
-        let _ = girdi;
-        OyunAkisi::DevamEt
-    });
+let mut fizik = FizikDunyasi::yeni();
+fizik.govde_ekle(FizikGovdesi::dinamik_kup(oyuncu, Vektor3::BIR));
+fizik.govde_ekle(FizikGovdesi::statik_kup(
+    zemin,
+    Vektor3::yeni(10.0, 1.0, 10.0),
+));
+
+// Her render karesinde geçen gerçek süre sabit fizik adımlarına bölünür.
+fizik.guncelle(&mut dunya, zaman.kare_suresi());
 ```
 
-3B çizici şunları birlikte kullanır:
+Fizik birikimi render hızından bağımsız sabit adımlarla işlenir. Uzun takılmalarda kare süresi ve alt adım sayısı sınırlandırılarak ölüm sarmalı engellenir. Dinamik gövdeler X, Y ve Z eksenlerinde ayrı çözülür; böylece duvara çarpan gövde diğer eksenlerde kaymaya devam eder.
 
-- Sağ elli dünya koordinatları
-- Perspektif `Kamera3B`
-- 4×4 model, görünüm ve izdüşüm matrisleri
-- 24 normalli tepe ve 36 indeksli ortak küp mesh'i
-- Her küp için model matrisi ve renk taşıyan GPU instance verisi
-- `Depth32Float` derinlik dokusu ve depth test
-- Yüzey normallerine dayalı temel yönsel aydınlatma
+## glTF/GLB yükleme
+
+```rust
+use tgame::onsoz::ModelVerisi;
+
+let model = ModelVerisi::gltf_yukle("varliklar/karakter.glb")?;
+println!("{} mesh yüklendi", model.meshler().len());
+```
+
+Yükleyici üçgen primitive'leri, konumları, normalleri ve indeksleri okur. İndeks yoksa sıralı indeks üretir; normal yoksa üçgenlerden yumuşatılmış tepe normalleri hesaplar. Bozuk veya sınırı aşan mesh verisi Türkçe `OyunHatasi` ile reddedilir.
 
 ## Örnekleri çalıştırma
 
-### 3B dünya
+### 3B fizik dünyası
 
 ```powershell
 cargo run -p ilk-oyun
@@ -86,10 +86,11 @@ cargo run -p ilk-oyun
 
 Kontroller:
 
-- `WASD`: oyuncuyu X-Z düzleminde hareket ettirir
-- Sol/sağ yön tuşları: kamerayı oyuncunun çevresinde döndürür
-- Yukarı/aşağı yön tuşları: kamera yüksekliğini değiştirir
-- `Boşluk`: oyuncu konumu, kare ve süre bilgisini yazdırır
+- Fare: kamerayı oyuncunun çevresinde döndürür
+- `WASD`: kamera yönüne göre oyuncuyu hareket ettirir
+- `Boşluk`: oyuncu zemindeyse zıplatır
+- Yön tuşları: fareye alternatif kamera kontrolü
+- `Enter`: konum, hız ve zeminde olma durumunu yazdırır
 - `Escape`: kontrollü kapanış
 
 ### 2B uyumluluk örneği
@@ -98,7 +99,7 @@ Kontroller:
 cargo run -p ikiboyut-oyun
 ```
 
-Bu örnek eski `Dunya::yeni()`, `Donusum2B`, `Kamera2B` ve üçgen instancing hattının 3B güncellemelerinden sonra da çalıştığını doğrular.
+Bu örnek eski `Dunya::yeni()`, `Donusum2B`, `Kamera2B` ve üçgen instancing hattının 3B/fizik güncellemelerinden sonra da çalıştığını doğrular.
 
 ## Kalite denetimi
 
