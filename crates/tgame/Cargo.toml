@@ -8,9 +8,11 @@ repository.workspace = true
 
 [dependencies]
 tgame-cekirdek = { path = "../tgame-cekirdek" }
+tgame-fizik = { path = "../tgame-fizik" }
 tgame-girdi = { path = "../tgame-girdi" }
 tgame-matematik = { path = "../tgame-matematik" }
 tgame-mod = { path = "../tgame-mod" }
+tgame-model = { path = "../tgame-model" }
 tgame-pencere = { path = "../tgame-pencere" }
 tgame-sahne = { path = "../tgame-sahne" }
 tgame-varlik = { path = "../tgame-varlik" }
