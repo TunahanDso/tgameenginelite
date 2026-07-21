@@ -172,6 +172,8 @@ Kalıcı veriler arasında şunlar bulunur:
 - Kontrol noktası
 - Toplam oynama süresi
 
+Entegrasyon testi, iki saatten uzun oynama süresiyle birlikte görev, görev eşyası, etkin sahne ve kara tahta değerlerinin gerçek bir yuva dosyasına yazılıp yeni çalışma zamanına geri yüklenmesini doğrular.
+
 ## Uzun oyun içerik düzeni
 
 Önerilen oyun projesi yapısı:
