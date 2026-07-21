@@ -62,7 +62,7 @@ impl Oyun {
 
     /// Her karede çalışacak oyun görevini belirler.
     ///
-    /// Görev güncel klavye durumunu, kare zamanını ve değiştirilebilir oyun
+    /// Görev güncel klavye/fare durumunu, kare zamanını ve değiştirilebilir oyun
     /// dünyasını alır. Döndürdüğü [`OyunAkisi`] oyunun devamını belirler.
     #[must_use]
     pub fn her_kare<F>(mut self, gorev: F) -> Self
@@ -127,9 +127,11 @@ impl fmt::Debug for Oyun {
 pub mod onsoz {
     pub use crate::Oyun;
     pub use tgame_cekirdek::{Cozunurluk, OyunHatasi, OyunSonucu};
-    pub use tgame_girdi::{Girdi, Tus};
+    pub use tgame_fizik::{Aabb3, FizikDunyasi, FizikGovdesi, FizikRaporu, GovdeTuru};
+    pub use tgame_girdi::{FareHareketi, Girdi, Tus};
     pub use tgame_matematik::{Matris4, Renk, Vektor2, Vektor3};
     pub use tgame_mod::{ModBilgisi, ModYoneticisi};
+    pub use tgame_model::{MeshVerisi, ModelVerisi};
     pub use tgame_pencere::OyunAkisi;
     pub use tgame_sahne::Sahne;
     pub use tgame_varlik::{
