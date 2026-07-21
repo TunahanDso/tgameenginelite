@@ -225,15 +225,23 @@ impl Matris4 {
     /// Bir noktayı homojen koordinatla dönüştürür.
     #[must_use]
     pub fn noktayi_donustur(self, nokta: Vektor3) -> Vektor3 {
-        let d = self.degerler;
-        let x = d[0] * nokta.x + d[4] * nokta.y + d[8] * nokta.z + d[12];
-        let y = d[1] * nokta.x + d[5] * nokta.y + d[9] * nokta.z + d[13];
-        let z = d[2] * nokta.x + d[6] * nokta.y + d[10] * nokta.z + d[14];
-        let w = d[3] * nokta.x + d[7] * nokta.y + d[11] * nokta.z + d[15];
-        if w.abs() > f32::EPSILON && (w - 1.0).abs() > f32::EPSILON {
-            Vektor3::yeni(x / w, y / w, z / w)
+        let degerler = self.degerler;
+        let donusturulmus_x =
+            degerler[0] * nokta.x + degerler[4] * nokta.y + degerler[8] * nokta.z + degerler[12];
+        let donusturulmus_y =
+            degerler[1] * nokta.x + degerler[5] * nokta.y + degerler[9] * nokta.z + degerler[13];
+        let donusturulmus_z =
+            degerler[2] * nokta.x + degerler[6] * nokta.y + degerler[10] * nokta.z + degerler[14];
+        let homojen_w =
+            degerler[3] * nokta.x + degerler[7] * nokta.y + degerler[11] * nokta.z + degerler[15];
+        if homojen_w.abs() > f32::EPSILON && (homojen_w - 1.0).abs() > f32::EPSILON {
+            Vektor3::yeni(
+                donusturulmus_x / homojen_w,
+                donusturulmus_y / homojen_w,
+                donusturulmus_z / homojen_w,
+            )
         } else {
-            Vektor3::yeni(x, y, z)
+            Vektor3::yeni(donusturulmus_x, donusturulmus_y, donusturulmus_z)
         }
     }
 
