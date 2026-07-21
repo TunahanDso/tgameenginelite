@@ -447,7 +447,7 @@ fn main() -> OyunSonucu {
 #[cfg(test)]
 mod testler {
     use super::{MaceraKimlikleri, macerayi_olustur};
-    use tgame::onsoz::{GorevAsamasi, OyunOlayi, Vektor3};
+    use tgame::onsoz::{GorevAsamasi, Vektor3};
 
     #[test]
     fn ornek_macera_bastan_sona_tamamlanir() {
