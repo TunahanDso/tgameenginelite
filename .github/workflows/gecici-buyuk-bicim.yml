@@ -12,6 +12,7 @@ jobs:
   bicimlendir:
     if: github.actor != 'github-actions[bot]'
     runs-on: windows-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
