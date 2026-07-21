@@ -1,122 +1,136 @@
 # Tgame Engine Lite 3B Mimari Sözleşmesi
 
-Bu belge, motorun üç boyutlu matematik, varlık, fizik, model, malzeme ve GPU çizim katmanlarında uyulacak temel sözleşmeleri tanımlar.
+Bu belge, motorun matematik, glTF sahne yükleme, dünya kaynakları, görünürlük, batching, fizik ve GPU çizim katmanlarında uyulacak güncel sözleşmeleri tanımlar.
 
-## Koordinat sistemi
+## Koordinat ve matris sözleşmesi
 
-Tgame Engine Lite sağ elli bir dünya koordinat sistemi kullanır:
+Tgame Engine Lite sağ elli dünya koordinatı kullanır:
 
 - Pozitif X: sağ
 - Pozitif Y: yukarı
 - Negatif Z: ileri
 
-`Vektor3::ILERI`, `(0, 0, -1)` değeridir. 3B hareket, fizik ve kamera kodu bu sözleşmeye göre yazılır.
-
-## Matris düzeni
-
 `Matris4`, GPU ile uyumlu sütun öncelikli 16 adet `f32` taşır.
 
-Model matrisi:
+Kullanıcı TRS modeli:
 
 ```text
 Öteleme × Z dönüşü × Y dönüşü × X dönüşü × Ölçek
 ```
 
-Kamera matrisi:
+Bir glTF node örneğinin nihai varlık matrisi:
 
 ```text
-Perspektif izdüşüm × sağ elli görünüm
+Kullanıcı TRS matrisi × glTF birikmiş kaynak dünya matrisi
 ```
 
-Perspektif matrisi WGPU'nun 0–1 derinlik aralığına göre üretilir.
+`Matris4::noktayi_donustur` homojen W bileşenini hesaba katar. `Matris4::en_buyuk_olcek`, sınır küresini eşit olmayan ölçek altında muhafazakâr biçimde büyütmek için ilk üç matris sütununun en büyük uzunluğunu döndürür.
 
-## Dünya seçimi
+## Dünya ve fizik
 
-- `Dunya::yeni()`: `DunyaBoyutu::IkiBoyut`
-- `Dunya::yeni_3b()`: `DunyaBoyutu::UcBoyut`
-
-Ana grafik çekirdeği pencere, yüzey, aygıt ve kuyruğu ortak yönetir. Kare çiziminde dünyanın boyutuna bakarak `IkiBoyutGrafik` veya `UcBoyutGrafik` yolunu seçer.
-
-## Sabit fizik adımı
+- `Dunya::yeni()`: ortografik 2B dünya
+- `Dunya::yeni_3b()`: perspektif ve derinlik tamponlu 3B dünya
 
 `FizikDunyasi`, render döngüsünden bağımsız yaklaşık 60 Hz sabit adım kullanır.
 
-- Render karesinde geçen süre bir birikimde tutulur.
-- Birikim sabit adımı karşıladıkça fizik alt adımları çalıştırılır.
-- Tek render karesi en fazla 250 ms fizik süresi ekleyebilir.
-- Tek karede en fazla sekiz alt adım çalıştırılır.
-- Sınır aşıldığında kalan birikim bırakılarak ölüm sarmalı engellenir.
+- Biriken süre sabit alt adımlara çevrilir.
+- Tek kare en fazla 250 ms fizik süresi ekleyebilir.
+- Tek karede en fazla sekiz fizik alt adımı çalıştırılır.
+- Statik ve dinamik gövdeler `Aabb3` ile çözülür.
+- X, Y ve Z eksenleri ayrı çözüldüğü için gövdeler duvar boyunca kayabilir.
 
-Fizik sonucu doğrudan `Donusum3B::konum` alanına yazılır. Render, fizik tarafından tamamlanmış son dünya durumunu çizer.
+AABB fizik hacmi görsel mesh dönüşünden bağımsız tutulabilir. Dönen veya karmaşık görseller için görünmez basit fizik varlığı kullanılması önerilir.
 
-## AABB çarpışma
+## CPU kaynak kimlikleri
 
-İlk fizik aşaması eksenlere hizalı kutu hacimleri kullanır:
+Dünya dört ayrı kimlik alanı kullanır:
 
-- `GovdeTuru::Statik`: hareket etmeyen engel
-- `GovdeTuru::Dinamik`: hız, yerçekimi ve çarpışma çözümüne katılan gövde
-- `Aabb3`: merkez ve pozitif yarı boyut
+- `VarlikKimligi`: oyun nesnesi
+- `MeshKimligi`: geometri
+- `MalzemeKimligi`: renk ve doku seçimi
+- `DokuKimligi`: RGBA8 piksel ve sampler kaynağı
 
-Dinamik hareket X, Y ve Z eksenlerinde ayrı uygulanıp çözülür. Bu yaklaşım oyuncunun duvara çarptığında diğer eksen boyunca kaymasını sağlar. Negatif Y yönündeki çözüm, gövdenin zeminde olduğunu işaretler ve zıplama yalnızca bu durumda kabul edilir.
+Kimlikler ekleme sırasındaki sabit `usize` değerleridir. Bu aşamada silme ve kimlik yeniden kullanımı yoktur.
 
-AABB'ler varlık dönüşünü takip eder ancak Euler dönüşünü hacme uygulamaz. Karmaşık veya dönen görseller için fizik hacmi ayrı, görünmez bir varlıkta tutulabilir.
+## Mesh kayıt defteri
 
-## Ham fare ve imleç
+`Dunya`, mesh geometrilerini eklenme sırasıyla saklar. Her mesh kaydının ayrıca varsayılan bir `MalzemeKimligi` vardır.
 
-Pencere katmanı ham `DeviceEvent::MouseMotion` hareketini toplar ve işletim sistemi türlerini oyun API'sine sızdırmadan `FareHareketi` olarak `Girdi`ye aktarır.
+`Dunya::mesh_ekle` çağrısı:
 
-- Pencere odaklandığında imleç önce `Locked`, desteklenmezse `Confined` modunda yakalanır.
-- İmleç oyun sırasında gizlenir.
-- Odak kaybolduğunda yakalama kaldırılır ve imleç gösterilir.
-- Göreli hareket kare boyunca birikir ve kare sonunda sıfırlanır.
+1. `MeshVerisi` içindeki malzemeyi geometriden ayırır.
+2. Malzemenin dokusunu bağımsız doku kayıt defterine gönderir.
+3. Doku ve malzemeyi tekilleştirir.
+4. Yalnızca geometriyi mesh kayıt defterine ekler.
+5. Mesh ile varsayılan malzeme kimliğini aynı sıra numarasında ilişkilendirir.
 
-## 3B varlık ve mesh kimlikleri
+Eski `MeshVerisi::yeni` API'si korunur. Dokusuz mesh sıfır UV ve beyaz varsayılan malzeme üretir.
 
-Bir 3B varlık ortak olarak şunları taşır:
+## Doku tekilleştirme
 
-- `Donusum3B`: konum, Euler dönüşü ve ölçek
-- `VarlikKimligi`: oyun nesnesi kimliği
-- `Gorunum3B`: çizim kaynağı ve varlık renk çarpanı
+`Dunya::doku_ekle`, yeni `DokuVerisi`ni mevcut kayıtlarla tam eşitlik üzerinden karşılaştırır:
 
-`Gorunum3B` iki kaynak türünü destekler:
+- genişlik
+- yükseklik
+- RGBA8 baytları
+- büyütme ve küçültme filtresi
+- U ve V sarma davranışı
 
-- `Gorunum3B::Kup`: motorun yerleşik küp mesh'i
-- `Gorunum3B::Mesh`: dünyadaki bir `MeshKimligi`
+Eşit bir kayıt varsa yeni GPU dokusu oluşturulmaz; mevcut `DokuKimligi` döndürülür.
 
-`VarlikKimligi` ile `MeshKimligi` bilinçli biçimde ayrıdır. Bir mesh kimliği çok sayıda varlık tarafından paylaşılabilir; her varlığın dönüşümü ve renk çarpanı ayrı kalır.
+## Malzeme tekilleştirme
 
-## CPU mesh kayıt defteri
+Dünya içindeki `MalzemeKaydi` yalnızca şunları taşır:
 
-`Dunya`, değişmez ekleme sırasına sahip `Vec<MeshVerisi>` kayıt defteri taşır.
+- doğrusal `Renk` taban çarpanı
+- isteğe bağlı `DokuKimligi`
 
-- `Dunya::mesh_ekle`: tek mesh kaydeder.
-- `Dunya::model_ekle`: modeldeki bütün mesh'leri kaydeder.
-- `Dunya::mesh`: kimlikle CPU mesh verisini döndürür.
-- `Dunya::meshler`: bütün kayıtları eklenme sırasıyla döndürür.
+`Dunya::malzeme_ekle`, aynı renk ve aynı doku kimliği bileşimine sahip kaydı tekrar kullanır.
 
-Kimlik, vektördeki sabit sıra numarasıdır. Kaynak silme ve kimlik yeniden kullanımı henüz yoktur. Bu karar kimlikleri kararlı tutar ve CPU–GPU kayıtlarının aynı sırayla eşitlenmesini kolaylaştırır.
+`Varlik::mesh`, mesh'in içe aktarılmış varsayılan malzemesini kullanır.
 
-## Genel model, UV ve malzeme verisi
+`Varlik::mesh_malzemeli`, aynı `MeshKimligi`ni başka bir `MalzemeKimligi` ile çizer. Bu kullanımda vertex ve indeks tamponları çoğaltılmaz.
 
-`tgame-model`, grafik aygıtından bağımsız kaynak verisi üretir:
+## Model ve glTF sahne verisi
 
-- `MeshVerisi`: konumlar, normaller, `Vektor2` UV'ler, `u32` indeksler ve içe aktarılmış malzeme
-- `MalzemeVerisi`: taban renk çarpanı ve isteğe bağlı taban renk dokusu
-- `DokuVerisi`: doğrulanmış genişlik, yükseklik, RGBA8 baytları ve sampler ayarları
-- `OrnekleyiciVerisi`: büyütme/küçültme filtresi ve U/V sarma davranışı
-- `ModelVerisi`: bir veya daha fazla mesh
-- `ModelVerisi::gltf_yukle`: `.gltf` ve `.glb` dosya yükleme
+`tgame-model` şu türleri üretir:
 
-Yükleyici yalnızca üçgen primitive'leri kabul eder. İndeks bulunmazsa sıralı indeks üretir; normal bulunmazsa üçgen yüzlerinden yumuşatılmış tepe normalleri hesaplar. `TEXCOORD_0` bulunmazsa her tepeye sıfır UV atanır.
+- `MeshVerisi`: konum, normal, UV, indeks, içe aktarılmış malzeme ve sınır küresi
+- `DokuVerisi`: doğrulanmış RGBA8 veri ve sampler ayarları
+- `MalzemeVerisi`: taban renk ve isteğe bağlı taban doku
+- `SinirKuresi`: yerel merkez ve yarıçap
+- `ModelOrnegi`: model içindeki mesh sıra numarası ve birikmiş glTF dünya matrisi
+- `ModelVerisi`: benzersiz primitive mesh'leri ve sahne örnekleri
 
-GPU'ya geçmeden önce şu koşullar zorunludur:
+Yükleyici yalnızca üçgen primitive'leri kabul eder. İndeks yoksa sıralı indeks üretir. Normal yoksa indeksli üçgenlerden yumuşatılmış normal hesaplar. `TEXCOORD_0` yoksa sıfır UV üretir.
 
-- Mesh en az bir tepe içerir.
-- Konum, normal ve UV sayıları eşittir.
-- İndeks listesi boş değildir ve üçün katıdır.
-- Bütün indeksler tepe sınırları içindedir.
-- Doku genişliği ve yüksekliği sıfır değildir.
-- RGBA8 bayt sayısı `genişlik × yükseklik × 4` değeridir.
+Sonlu olmayan konum, normal, UV, renk veya node matrisleri GPU'ya ulaşmadan Türkçe `OyunHatasi` ile reddedilir.
+
+## glTF primitive eşleme
+
+Her kabul edilen glTF primitive için şu eşleme tutulur:
+
+```text
+(glTF mesh indeksi, primitive sırası) → ModelVerisi mesh sıra numarası
+```
+
+Bu sayede bir glTF mesh birden fazla node tarafından kullanılsa bile geometri bir kez çözümlenir. Node'lar yalnızca aynı mesh sıra numarasına işaret eden ayrı `ModelOrnegi` kayıtları üretir.
+
+## glTF node hiyerarşisi
+
+Yükleyici varsayılan sahneyi, yoksa ilk sahneyi kullanır.
+
+Her kök node için özyinelemeli dolaşım yapılır:
+
+```text
+node dünya matrisi = ebeveyn dünya matrisi × node yerel matrisi
+```
+
+Bir node mesh içeriyorsa desteklenen her primitive için bir `ModelOrnegi` oluşturulur. Çocuk node'lar aynı birikmiş dünya matrisiyle dolaşılır.
+
+Sahne örneği bulunmazsa geriye dönük uyumluluk için her mesh'e birim matrisli örnek üretilir.
+
+`Dunya::model_sahnesi_ekle`, bütün mesh kaynaklarını kaydeder ve `ModelOrnegi` kayıtlarını otomatik Tgame varlıklarına dönüştürür.
 
 ## glTF malzeme içe aktarma
 
@@ -124,58 +138,93 @@ GPU'ya geçmeden önce şu koşullar zorunludur:
 
 - `baseColorFactor`
 - `baseColorTexture`
-- Taban renk dokusunun `texCoord` alanı; yalnızca `TEXCOORD_0` kabul edilir
-- `magFilter` ve `minFilter`
-- `wrapS` ve `wrapT`
+- `texCoord`; yalnızca `TEXCOORD_0`
+- `magFilter`
+- `minFilter`
+- `wrapS`
+- `wrapT`
 
-Sampler dönüşümleri:
-
-- `NEAREST` → `DokuFiltresi::EnYakin`
-- `LINEAR` → `DokuFiltresi::Dogrusal`
-- `REPEAT` → `DokuSarmasi::Tekrarla`
-- `MIRRORED_REPEAT` → `DokuSarmasi::AynalayarakTekrarla`
-- `CLAMP_TO_EDGE` → `DokuSarmasi::KenaraSabitle`
-
-İçe aktarılan 8 bit resimler RGBA8'e dönüştürülür:
+Desteklenen resim dönüşümleri:
 
 - R8 → gri RGB + tam alfa
 - R8G8 → gri RGB + ikinci kanal alfa
 - R8G8B8 → RGB + tam alfa
 - R8G8B8A8 → doğrudan RGBA
 
-16 bit ve kayan noktalı resim biçimleri bu aşamada Türkçe `OyunHatasi` ile reddedilir.
+16 bit ve kayan noktalı resim biçimleri açık hatayla reddedilir.
 
-## GPU mesh kaydı
+## Mesh sınır küresi
 
-`UcBoyutGrafik`, dünya kayıt defterinin GPU karşılığını aynı sıra ile tutar.
+Her mesh'in yerel sınır küresi yükleme sırasında hesaplanır:
 
-- Yeni dünya mesh'leri ilk görüldükleri karede GPU'ya yüklenir.
-- Kayıtlı mesh indeksleri `u32` ve `wgpu::IndexFormat::Uint32` kullanır.
-- Yerleşik küp mevcut küçük `u16` indeks düzenini korur.
-- CPU kayıt defterine yeni mesh eklendiğinde yalnızca eksik son kayıtlar GPU'ya aktarılır.
+1. Konumların eksen bazlı en küçük ve en büyük değerleri bulunur.
+2. Merkez, AABB orta noktası olarak seçilir.
+3. Yarıçap, merkezden en uzak tepe mesafesidir.
 
-Her tepe 32 bayt taşır:
+Bu küre hızlı görünürlük testi için muhafazakârdır; mesh'i dışarıda bırakmaz.
+
+Dünya küresi:
 
 ```text
-konum.xyz   12 bayt   location 0
-normal.xyz  12 bayt   location 1
-uv.xy        8 bayt   location 7
+merkez = model matrisi ile dönüştürülmüş yerel merkez
+yarıçap = yerel yarıçap × model matrisinin en büyük ölçeği
 ```
 
-Bir mesh kaynağı için tepe ve indeks tamponları bir kez oluşturulur. Aynı mesh'i kullanan her varlık için geometri tekrar gönderilmez.
+## Kamera frustum culling
+
+`Kamera3B::kure_gorunur_mu`, dünya sınır küresini şu sırayla sınar:
+
+1. Yakın düzlem
+2. Uzak düzlem
+3. Kamera sağ eksenindeki yatay görüş sınırı
+4. Kamera gerçek yukarı eksenindeki dikey görüş sınırı
+
+Frustum dışında kalan varlık:
+
+- instance baytlarına yazılmaz
+- instance tamponunda yer kaplamaz
+- çizim grubuna girmez
+- draw çağrısına ulaşmaz
+
+Sonlu olmayan veya güvenilir biçimde değerlendirilemeyen bir küre yanlışlıkla kaybolmaması için görünür kabul edilir.
+
+`Varlik::her_zaman_ciz`, özel kullanıcı arayüzü veya debug nesneleri için culling'i atlar.
+
+## GPU kaynak kayıtları
+
+`UcBoyutGrafik` üç bağımsız GPU kayıt defteri tutar:
+
+- `Vec<GpuDoku>`
+- `Vec<GpuMalzeme>`
+- `Vec<GpuMesh>`
+
+Eşitleme sırası önemlidir:
+
+```text
+CPU dokuları → GPU dokuları
+CPU malzemeleri → GPU malzemeleri
+CPU mesh'leri → GPU mesh'leri
+```
+
+Malzeme oluşturulurken işaret ettiği `DokuKimligi` GPU kayıt defterinde hazır olmak zorundadır.
+
+Dokusuz malzemeler motorun tek 1×1 beyaz fallback dokusunu paylaşır.
+
+## GPU doku kaydı
+
+`GpuDoku` şu kaynakların ömrünü birlikte yönetir:
+
+- `Rgba8UnormSrgb` texture
+- `TextureView`
+- WGPU sampler
+
+Doku `COPY_DST | TEXTURE_BINDING` kullanımıyla oluşturulur ve `write_texture` ile yüklenir.
 
 ## GPU malzeme kaydı
 
-Her `GpuMesh`, mevcut aşamada kendi `GpuMalzeme` kaydını taşır. GPU malzemesi şu kaynakların ömrünü birlikte yönetir:
+`GpuMalzeme` geometri taşımaz. Yalnızca seçilen `GpuDoku` görünümü ve sampler'ından material bind group oluşturur.
 
-- `Rgba8UnormSrgb` taban renk dokusu
-- `TextureView`
-- WGPU `Sampler`
-- Malzeme `BindGroup`
-
-Dokusuz mesh'ler 1×1 beyaz RGBA8 doku kullanır. Bu sayede shader'da koşullu dokulu/dokusuz dal bulunmaz; bütün mesh'ler aynı texture-sampling yolunu kullanır.
-
-Pipeline bind group sözleşmesi:
+Bind group sözleşmesi:
 
 ```text
 group 0: kamera uniform tamponu
@@ -183,86 +232,102 @@ group 1 binding 0: taban renk texture view
 group 1 binding 1: filtering sampler
 ```
 
-GPU dokuları tek mip seviyesine sahiptir. Sampler'ın mipmap filtresi eşlenir ancak bu aşamada mipmap zinciri üretilmez.
+## GPU mesh kaydı
 
-## Instance verisi ve draw batching
+`GpuMesh` yalnızca şunları taşır:
 
-Her etkin 3B varlık GPU'ya 80 bayt instance verisi gönderir:
+- vertex tamponu
+- indeks tamponu
+- indeks sayısı
+- indeks biçimi
 
-- 64 bayt model matrisi
-- 16 bayt renk çarpanı
-
-Kayıtlı glTF mesh'lerinde instance rengi, malzemenin `baseColorFactor` değeriyle CPU tarafında çarpılır. Fragment shader bu sonucu sRGB taban renk dokusundan örneklenen renkle tekrar çarpar.
-
-Kare hazırlığında varlıklar `MeshAnahtari` ile sıralanır:
-
-- Yerleşik küp grubu
-- Her `MeshKimligi` için ayrı kayıtlı mesh grubu
-
-Bütün instance verileri tek dinamik instance tamponuna ardışık yazılır. Her grup bu tampon içindeki kendi `Range<u32>` aralığını taşır. Render geçişinde pipeline, kamera grubu ve instance tamponu bir kez bağlanır; grup değiştikçe malzeme bind group'u, tepe/indeks tamponları ve indeks biçimi değiştirilir.
-
-Her mesh grubu için tek çağrı yapılır:
+Her genel mesh tepesi 32 bayttır:
 
 ```text
-draw_indexed(mesh indeksleri, grup instance aralığı)
+konum.xyz   12 bayt   location 0
+normal.xyz  12 bayt   location 1
+uv.xy        8 bayt   location 7
 ```
 
-Bu nedenle aynı dokulu glTF mesh'ini kullanan yüzlerce varlık tek draw call ile çizilebilir. Farklı mesh sayısı draw call sayısının temel belirleyicisidir.
+Yerleşik küp `Uint16`, kayıtlı glTF mesh'leri `Uint32` indeks kullanır.
 
-## Yerleşik küp mesh'i
+## Instance verisi
 
-Küp mesh'i:
+Her görünür 3B varlık 80 bayt instance verisi taşır:
 
-- 24 tepe
-- Her tepede konum, yüzey normali ve yüz UV'si
-- 36 adet `u16` indeks
-- Üçgen listesi topolojisi
-- Otomatik 1×1 beyaz malzeme dokusu
+- 64 bayt nihai model matrisi
+- 16 bayt renk çarpanı
 
-Her yüzün ayrı normal ve UV taşıması için köşe konumları yüzler arasında paylaşılmaz. Bu, keskin küp kenarlarında doğru temel aydınlatma ve yüz başına tam UV alanı sağlar.
+Nihai renk çarpanı:
 
-## Shader ve aydınlatma
+```text
+varlık rengi × seçilen malzemenin baseColorFactor değeri
+```
 
-Vertex shader model matrisiyle dünya konumunu ve normalini üretir; UV'yi fragment aşamasına aktarır.
+Fragment shader bu değeri sRGB dokudan örneklenen renkle çarpar ve temel yönsel ışığı uygular.
 
-Fragment shader:
+## Mesh + malzeme batching
 
-1. `textureSample` ile taban renk dokusunu örnekler.
-2. Doku rengini instance/malzeme renk çarpanıyla birleştirir.
-3. Sabit yönsel ışık ve ortam payıyla temel yaygın aydınlatma uygular.
+Çizim anahtarı:
 
-Bu aşama tam PBR değildir; ancak geometri, UV, doku, sampler ve renk çarpanı ayrımı sonraki PBR kaynakları için temel oluşturur.
+```text
+CizimAnahtari {
+    malzeme: MalzemeAnahtari,
+    mesh: MeshAnahtari,
+}
+```
 
-## Derinlik
+BTreeMap sıralaması nedeniyle gruplar önce malzemeye, sonra mesh'e göre sıralanır.
 
-3B pipeline `Depth32Float` derinlik dokusu kullanır. Her karede derinlik 1.0 değerine temizlenir; daha yakın parçalar `Less` karşılaştırmasıyla görünür olur.
+Render geçişinde:
 
-Pencere yeniden boyutlandırıldığında yüzey yapılandırmasıyla birlikte derinlik dokusu da yeni boyutta yeniden oluşturulur.
+- pipeline bir kez bağlanır
+- kamera bind group'u bir kez bağlanır
+- ortak instance tamponu bir kez bağlanır
+- malzeme değişmedikçe group 1 yeniden bağlanmaz
+- grup başına mesh vertex/index tamponları bağlanır
+- grup başına bir `draw_indexed` çağrısı yapılır
 
-## Güncel sınırlar
+Aynı mesh + malzeme bileşimini kullanan yüzlerce görünür varlık tek draw çağrısında çizilir.
 
-- glTF düğüm hiyerarşisi ve düğüm dönüşümleri uygulanmaz.
-- Yalnızca `TEXCOORD_0` desteklenir.
-- Metalik/pürüzlülük, normal, emissive ve occlusion dokuları çizilmez.
-- Mipmap zinciri oluşturulmaz.
-- Malzeme mesh kaydının parçasıdır; bağımsız `MalzemeKimligi` ve aynı geometriyi farklı malzemelerle paylaşma henüz yoktur.
-- Alfa modu, çift taraflılık ve alpha cutoff henüz uygulanmaz.
-- İskelet animasyonu, morph target ve skinning yoktur.
-- Kaynak silme, sıcak yenileme ve GPU kaynak boşaltma henüz yoktur.
+## Örnek stres sahnesi
+
+`ilk-oyun` örneği aynı piramit mesh'ini:
+
+- glTF'nin dokulu varsayılan malzemesiyle
+- bağımsız turkuaz malzemeyle
+
+çizer.
+
+Ayrıca kamera görüşünün çok dışında 256 ek piramit oluşturur. Bu varlıklar dünya kayıtlarında bulunur fakat frustum culling nedeniyle instance tamponuna ve draw gruplarına ulaşmaz.
 
 ## Geriye dönük uyumluluk
 
-2B çizici ayrı modülde korunur. `ikiboyut-oyun` paketi workspace'e dahildir ve her kalite koşusunda derlenir. Yerleşik `Varlik::kup` API'si genel dokulu mesh sistemi içinde korunur.
+- `Varlik::kup` korunur.
+- `Varlik::mesh` korunur.
+- `Dunya::model_ekle` yalnızca mesh kimlikleri isteyen kod için korunur.
+- 2B çizici ayrı modülde kalır.
+- `ikiboyut-oyun` her kalite koşusunda derlenir ve test edilir.
 
-## Sonraki 3B aşamalar
+## Güncel sınırlar
 
-1. Bağımsız `MalzemeKimligi`, doku tekrar kullanımı ve malzeme bazlı batching
+- Yalnızca `TEXCOORD_0` desteklenir.
+- Yalnızca taban renk dokusu çizilir.
+- Mipmap zinciri üretilmez.
+- Anisotropic filtering yoktur.
+- Metalik/pürüzlülük, normal, emissive ve occlusion haritaları çizilmez.
+- Mesh geometrileri henüz içerik eşitliği veya hash ile tekilleştirilmez.
+- Alfa modu, alpha cutoff ve çift taraflılık uygulanmaz.
+- Animasyon, skinning ve morph target desteği yoktur.
+- Kaynak silme, sıcak yenileme ve GPU kaynak boşaltma henüz yoktur.
+
+## Sonraki büyük aşamalar
+
+1. Mesh içerik hash'i ve geometri tekilleştirme
 2. Mipmap üretimi ve anisotropic filtering
-3. glTF düğüm hiyerarşisi ve yerel/dünya dönüşümleri
-4. Frustum culling ve görünür instance grupları
-5. Metalik/pürüzlülük, normal ve emissive haritalarıyla PBR
-6. Dünya ışıkları ve gölge haritası
-7. Hareketli–hareketli çarpışma ve geniş faz hızlandırması
-8. Kapsül oyuncu çarpışması, basamak ve eğimli yüzeyler
-9. Animasyon, iskelet ve skinning
-10. Kaynak sıcak yenileme ve yaşam döngüsü yönetimi
+3. Frustum sonuçlarının kareler arası önbelleği ve mekânsal bölümleme
+4. Metalik/pürüzlülük ve normal haritalı PBR
+5. Dünya ışıkları ve gölge haritası
+6. glTF animasyon, iskelet ve skinning
+7. Kaynak sıcak yenileme ve yaşam döngüsü
+8. Hareketli–hareketli çarpışma için broad phase
