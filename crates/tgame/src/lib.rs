@@ -91,7 +91,7 @@ impl Oyun {
         let kare_gorevi = kare_gorevi.unwrap_or_else(|| Box::new(|_, _, _| OyunAkisi::DevamEt));
 
         println!(
-            "{} başlatılıyor — {}×{} — {:?} — {} sahne — {} varlık — {} mesh — {} yüklü mod — mod klasörü: {}",
+            "{} başlatılıyor — {}×{} — {:?} — {} sahne — {} varlık — {} mesh — {} malzeme — {} doku — {} yüklü mod — mod klasörü: {}",
             ayarlar.baslik,
             cozunurluk.genislik,
             cozunurluk.yukseklik,
@@ -99,6 +99,8 @@ impl Oyun {
             sahneler.len(),
             dunya.varliklar().len(),
             dunya.meshler().len(),
+            dunya.malzemeler().len(),
+            dunya.dokular().len(),
             mod_yoneticisi.yuklu_modlar().len(),
             ayarlar.mod_klasoru,
         );
@@ -133,14 +135,14 @@ pub mod onsoz {
     pub use tgame_matematik::{Matris4, Renk, Vektor2, Vektor3};
     pub use tgame_mod::{ModBilgisi, ModYoneticisi};
     pub use tgame_model::{
-        DokuFiltresi, DokuSarmasi, DokuVerisi, MalzemeVerisi, MeshVerisi, ModelVerisi,
-        OrnekleyiciVerisi,
+        DokuFiltresi, DokuSarmasi, DokuVerisi, MalzemeVerisi, MeshVerisi, ModelOrnegi,
+        ModelVerisi, OrnekleyiciVerisi, SinirKuresi,
     };
     pub use tgame_pencere::OyunAkisi;
     pub use tgame_sahne::Sahne;
     pub use tgame_varlik::{
-        Donusum2B, Donusum3B, Dunya, DunyaBoyutu, Gorunum2B, Gorunum3B, Kamera2B, Kamera3B,
-        MeshKimligi, Varlik, VarlikKimligi,
+        DokuKimligi, Donusum2B, Donusum3B, Dunya, DunyaBoyutu, Gorunum2B, Gorunum3B, Kamera2B,
+        Kamera3B, MalzemeKaydi, MalzemeKimligi, MeshKimligi, Varlik, VarlikKimligi,
     };
     pub use tgame_zaman::Zaman;
 }
@@ -164,6 +166,8 @@ mod testler {
         assert!(oyun.mod_yoneticisi.yuklu_modlar().is_empty());
         assert!(oyun.dunya.varliklar().is_empty());
         assert!(oyun.dunya.meshler().is_empty());
+        assert!(oyun.dunya.malzemeler().is_empty());
+        assert!(oyun.dunya.dokular().is_empty());
         assert!(oyun.kare_gorevi.is_none());
     }
 
