@@ -153,7 +153,7 @@ fn muhur_etkilesimlerini_tanimla(macera: &mut Macera, kimlikler: &MaceraKimlikle
     for (sira, konum) in [
         Vektor3::yeni(3.2, 0.0, 1.0),
         Vektor3::yeni(-3.2, 0.0, -1.0),
-        Vektor3::yeni(2.4, 0.0, -3.2),
+        Vektor3::yeni(2.4, 0.0, -2.4),
     ]
     .into_iter()
     .enumerate()
