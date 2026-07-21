@@ -1,4 +1,4 @@
-use tgame_model::{DokuFiltresi, DokuSarmasi, DokuVerisi, MalzemeVerisi, OrnekleyiciVerisi};
+use tgame_model::{DokuFiltresi, DokuSarmasi, MalzemeVerisi, OrnekleyiciVerisi};
 
 pub(super) struct GpuMalzeme {
     pub(super) grup: wgpu::BindGroup,
@@ -67,7 +67,7 @@ impl GpuMalzeme {
             address_mode_w: wgpu::AddressMode::ClampToEdge,
             mag_filter: filtre_modu(ornekleyici.buyutme),
             min_filter: filtre_modu(ornekleyici.kucultme),
-            mipmap_filter: filtre_modu(ornekleyici.kucultme),
+            mipmap_filter: mipmap_filtre_modu(ornekleyici.kucultme),
             ..Default::default()
         });
         let grup = aygit.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -125,6 +125,13 @@ const fn filtre_modu(filtre: DokuFiltresi) -> wgpu::FilterMode {
     }
 }
 
+const fn mipmap_filtre_modu(filtre: DokuFiltresi) -> wgpu::MipmapFilterMode {
+    match filtre {
+        DokuFiltresi::EnYakin => wgpu::MipmapFilterMode::Nearest,
+        DokuFiltresi::Dogrusal => wgpu::MipmapFilterMode::Linear,
+    }
+}
+
 const fn sarma_modu(sarma: DokuSarmasi) -> wgpu::AddressMode {
     match sarma {
         DokuSarmasi::KenaraSabitle => wgpu::AddressMode::ClampToEdge,
@@ -135,7 +142,7 @@ const fn sarma_modu(sarma: DokuSarmasi) -> wgpu::AddressMode {
 
 #[cfg(test)]
 mod testler {
-    use super::{filtre_modu, sarma_modu};
+    use super::{filtre_modu, mipmap_filtre_modu, sarma_modu};
     use tgame_model::{DokuFiltresi, DokuSarmasi};
 
     #[test]
@@ -143,6 +150,10 @@ mod testler {
         assert_eq!(
             filtre_modu(DokuFiltresi::EnYakin),
             wgpu::FilterMode::Nearest
+        );
+        assert_eq!(
+            mipmap_filtre_modu(DokuFiltresi::Dogrusal),
+            wgpu::MipmapFilterMode::Linear
         );
         assert_eq!(
             sarma_modu(DokuSarmasi::AynalayarakTekrarla),
