@@ -19,18 +19,27 @@ impl MeshVerisi {
     ///
     /// # Errors
     ///
-    /// Konum ve normal sayıları eşleşmezse veya indekslerden biri tepe sınırını aşarsa
-    /// [`OyunHatasi`] döndürür.
+    /// Mesh boşsa, konum ve normal sayıları eşleşmezse, indeks sayısı üçün katı
+    /// değilse veya indekslerden biri tepe sınırını aşarsa [`OyunHatasi`] döndürür.
     pub fn yeni(
         konumlar: Vec<Vektor3>,
         normaller: Vec<Vektor3>,
         indeksler: Vec<u32>,
     ) -> OyunSonucu<Self> {
+        if konumlar.is_empty() {
+            return Err(OyunHatasi::yeni("Mesh en az bir tepe içermeli."));
+        }
         if konumlar.len() != normaller.len() {
             return Err(OyunHatasi::yeni(
                 "Mesh konum ve normal sayıları birbiriyle eşleşmiyor.",
             ));
         }
+        if indeksler.is_empty() || !indeksler.len().is_multiple_of(3) {
+            return Err(OyunHatasi::yeni(
+                "Mesh indeks sayısı üçgenler için sıfırdan büyük ve üçün katı olmalı.",
+            ));
+        }
+
         let tepe_sayisi = u32::try_from(konumlar.len())
             .map_err(|_| OyunHatasi::yeni("Mesh desteklenenden fazla tepe içeriyor."))?;
         if indeksler.iter().any(|indeks| *indeks >= tepe_sayisi) {
@@ -138,12 +147,18 @@ impl ModelVerisi {
     pub fn meshler(&self) -> &[MeshVerisi] {
         &self.meshler
     }
+
+    /// Modelin sahip olduğu mesh'leri tüketerek döndürür.
+    #[must_use]
+    pub fn meshlere_ayir(self) -> Vec<MeshVerisi> {
+        self.meshler
+    }
 }
 
 fn normalleri_hesapla(konumlar: &[Vektor3], indeksler: &[u32]) -> OyunSonucu<Vec<Vektor3>> {
-    if !indeksler.len().is_multiple_of(3) {
+    if indeksler.is_empty() || !indeksler.len().is_multiple_of(3) {
         return Err(OyunHatasi::yeni(
-            "Mesh indeks sayısı üçgenler için üçün katı olmalı.",
+            "Mesh indeks sayısı üçgenler için sıfırdan büyük ve üçün katı olmalı.",
         ));
     }
 
@@ -179,25 +194,27 @@ fn indeks_usize(indeks: u32, tepe_sayisi: usize) -> OyunSonucu<usize> {
 mod testler {
     use tgame_matematik::Vektor3;
 
-    use super::{MeshVerisi, normalleri_hesapla};
+    use super::MeshVerisi;
 
     #[test]
-    fn eksik_normaller_ucgenden_hesaplanir() {
-        let konumlar = [
-            Vektor3::yeni(0.0, 0.0, 0.0),
-            Vektor3::yeni(1.0, 0.0, 0.0),
-            Vektor3::yeni(0.0, 1.0, 0.0),
-        ];
-        let normaller = normalleri_hesapla(&konumlar, &[0, 1, 2])
-            .expect("Geçerli üçgenin normali hesaplanmalı.");
+    fn gecersiz_mesh_reddedilir() {
+        let sonuc = MeshVerisi::yeni(
+            vec![Vektor3::SIFIR],
+            vec![Vektor3::YUKARI],
+            vec![0, 1, 2],
+        );
 
-        assert_eq!(normaller, vec![Vektor3::GERI; 3]);
+        assert!(sonuc.is_err());
     }
 
     #[test]
-    fn gecersiz_indeks_mesh_olusturmaz() {
-        let sonuc = MeshVerisi::yeni(vec![Vektor3::SIFIR], vec![Vektor3::YUKARI], vec![1]);
+    fn ucgen_mesh_kabul_edilir() {
+        let sonuc = MeshVerisi::yeni(
+            vec![Vektor3::SIFIR, Vektor3::SAG, Vektor3::YUKARI],
+            vec![Vektor3::ILERI; 3],
+            vec![0, 1, 2],
+        );
 
-        assert!(sonuc.is_err());
+        assert!(sonuc.is_ok());
     }
 }
