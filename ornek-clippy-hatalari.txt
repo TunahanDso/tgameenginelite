@@ -1,0 +1,116 @@
+error: unused `self` argument
+   --> examples\ilk-oyun\src\main.rs:234:31
+    |
+234 |     fn diyalog_girdisini_isle(&self, girdi: &Girdi, macera: &mut Macera) -> bool {
+    |                               ^^^^^
+    |
+    = help: consider refactoring to an associated function
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#unused_self
+    = note: `-D clippy::unused-self` implied by `-D clippy::pedantic`
+    = help: to override `-D clippy::pedantic` add `#[allow(clippy::unused_self)]`
+
+
+
+error: unused `self` argument
+   --> examples\ilk-oyun\src\main.rs:234:31
+    |
+234 |     fn diyalog_girdisini_isle(&self, girdi: &Girdi, macera: &mut Macera) -> bool {
+    |                               ^^^^^
+    |
+    = help: consider refactoring to an associated function
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#unused_self
+    = note: `-D clippy::unused-self` implied by `-D clippy::pedantic`
+    = help: to override `-D clippy::pedantic` add `#[allow(clippy::unused_self)]`
+
+
+
+error: redundant closure
+   --> examples\ilk-oyun\src\main.rs:306:39
+    |
+306 |             gecis.onceki.as_ref().map(|sahne| sahne.deger()),
+    |                                       ^^^^^^^^^^^^^^^^^^^^^ help: replace the closure with the method itself: `tgame::onsoz::SahneKimligi::deger`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#redundant_closure_for_method_calls
+    = note: `-D clippy::redundant-closure-for-method-calls` implied by `-D clippy::pedantic`
+    = help: to override `-D clippy::pedantic` add `#[allow(clippy::redundant_closure_for_method_calls)]`
+
+
+
+error: redundant closure
+   --> examples\ilk-oyun\src\main.rs:306:39
+    |
+306 |             gecis.onceki.as_ref().map(|sahne| sahne.deger()),
+    |                                       ^^^^^^^^^^^^^^^^^^^^^ help: replace the closure with the method itself: `tgame::onsoz::SahneKimligi::deger`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#redundant_closure_for_method_calls
+    = note: `-D clippy::redundant-closure-for-method-calls` implied by `-D clippy::pedantic`
+    = help: to override `-D clippy::pedantic` add `#[allow(clippy::redundant_closure_for_method_calls)]`
+
+
+
+error: redundant closure
+   --> examples\ilk-oyun\src\main.rs:354:39
+    |
+354 |         let adim = ilerleme.map_or(0, |ilerleme| ilerleme.adim());
+    |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace the closure with the method itself: `tgame::onsoz::GorevIlerlemesi::adim`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#redundant_closure_for_method_calls
+
+
+
+error: redundant closure
+   --> examples\ilk-oyun\src\main.rs:354:39
+    |
+354 |         let adim = ilerleme.map_or(0, |ilerleme| ilerleme.adim());
+    |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace the closure with the method itself: `tgame::onsoz::GorevIlerlemesi::adim`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#redundant_closure_for_method_calls
+
+
+
+error: casting `u64` to `f64` may cause a loss of precision (`u64` is 64 bits wide, but `f64`'s mantissa is only 52 bits wide)
+   --> examples\ilk-oyun\src\main.rs:376:13
+    |
+376 |             macera.oynama_suresi_milisaniye() as f64 / 1_000.0
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#cast_precision_loss
+    = note: `-D clippy::cast-precision-loss` implied by `-D clippy::pedantic`
+    = help: to override `-D clippy::pedantic` add `#[allow(clippy::cast_precision_loss)]`
+
+
+
+error: casting `u64` to `f64` may cause a loss of precision (`u64` is 64 bits wide, but `f64`'s mantissa is only 52 bits wide)
+   --> examples\ilk-oyun\src\main.rs:376:13
+    |
+376 |             macera.oynama_suresi_milisaniye() as f64 / 1_000.0
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#cast_precision_loss
+    = note: `-D clippy::cast-precision-loss` implied by `-D clippy::pedantic`
+    = help: to override `-D clippy::pedantic` add `#[allow(clippy::cast_precision_loss)]`
+
+
+
+error: this function has too many lines (189/100)
+   --> examples\ilk-oyun\src\main.rs:440:1
+    |
+440 | fn macerayi_olustur(kimlikler: &MaceraKimlikleri) -> OyunSonucu<Macera> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#too_many_lines
+    = note: `-D clippy::too-many-lines` implied by `-D clippy::pedantic`
+    = help: to override `-D clippy::pedantic` add `#[allow(clippy::too_many_lines)]`
+
+
+
+error: this function has too many lines (189/100)
+   --> examples\ilk-oyun\src\main.rs:440:1
+    |
+440 | fn macerayi_olustur(kimlikler: &MaceraKimlikleri) -> OyunSonucu<Macera> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#too_many_lines
+    = note: `-D clippy::too-many-lines` implied by `-D clippy::pedantic`
+    = help: to override `-D clippy::pedantic` add `#[allow(clippy::too_many_lines)]`
+
