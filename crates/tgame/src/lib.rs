@@ -135,8 +135,8 @@ pub mod onsoz {
     pub use tgame_matematik::{Matris4, Renk, Vektor2, Vektor3};
     pub use tgame_mod::{ModBilgisi, ModYoneticisi};
     pub use tgame_model::{
-        DokuFiltresi, DokuSarmasi, DokuVerisi, MalzemeVerisi, MeshVerisi, ModelOrnegi,
-        ModelVerisi, OrnekleyiciVerisi, SinirKuresi,
+        DokuFiltresi, DokuSarmasi, DokuVerisi, MalzemeVerisi, MeshVerisi, ModelOrnegi, ModelVerisi,
+        OrnekleyiciVerisi, SinirKuresi,
     };
     pub use tgame_pencere::OyunAkisi;
     pub use tgame_sahne::Sahne;

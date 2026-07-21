@@ -369,7 +369,8 @@ mod testler {
 
     #[test]
     fn perspektif_matrisi_sonludur() {
-        let matris = Matris4::perspektif_sag_el(std::f32::consts::FRAC_PI_3, 16.0 / 9.0, 0.1, 100.0);
+        let matris =
+            Matris4::perspektif_sag_el(std::f32::consts::FRAC_PI_3, 16.0 / 9.0, 0.1, 100.0);
         assert!(matris.sonlu_mu());
     }
 }

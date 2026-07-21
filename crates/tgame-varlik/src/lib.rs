@@ -646,11 +646,7 @@ impl Dunya {
         let (temel_renk, temel_doku) = malzeme.parcalara_ayir();
         let temel_doku = temel_doku.map(|doku| self.doku_ekle(doku));
         let kayit = MalzemeKaydi::yeni(temel_renk, temel_doku);
-        if let Some(indeks) = self
-            .malzemeler
-            .iter()
-            .position(|mevcut| *mevcut == kayit)
-        {
+        if let Some(indeks) = self.malzemeler.iter().position(|mevcut| *mevcut == kayit) {
             return MalzemeKimligi(indeks);
         }
         let kimlik = MalzemeKimligi(self.malzemeler.len());
@@ -892,13 +888,8 @@ mod testler {
 
     #[test]
     fn ayni_doku_ve_malzeme_tek_kayit_olur() {
-        let doku = DokuVerisi::yeni_rgba8(
-            1,
-            1,
-            vec![255; 4],
-            OrnekleyiciVerisi::default(),
-        )
-        .expect("Doku geçerli olmalı.");
+        let doku = DokuVerisi::yeni_rgba8(1, 1, vec![255; 4], OrnekleyiciVerisi::default())
+            .expect("Doku geçerli olmalı.");
         let malzeme = MalzemeVerisi::yeni(Renk::BEYAZ).temel_doku(doku);
         let mut dunya = Dunya::yeni_3b();
         let birinci = dunya.mesh_ekle(test_mesh(malzeme.clone()));

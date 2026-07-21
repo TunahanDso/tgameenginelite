@@ -9,16 +9,13 @@ use std::{collections::BTreeMap, ops::Range};
 use tgame_cekirdek::{Cozunurluk, OyunHatasi, OyunSonucu};
 use tgame_matematik::{Renk, Vektor3};
 use tgame_model::SinirKuresi;
-use tgame_varlik::{
-    Dunya, Gorunum3B, MalzemeKimligi, MeshKimligi, Varlik,
-};
+use tgame_varlik::{Dunya, Gorunum3B, MalzemeKimligi, MeshKimligi, Varlik};
 
 use gpu_doku::GpuDoku;
 use gpu_malzeme::{GpuMalzeme, malzeme_yerlesimi_olustur};
 use gpu_mesh::GpuMesh;
 use pipeline::{
-    cizim_hatti_olustur, derinlik_gorunumu_olustur, kamera_yerlesimi_olustur,
-    ornek_tamponu_olustur,
+    cizim_hatti_olustur, derinlik_gorunumu_olustur, kamera_yerlesimi_olustur, ornek_tamponu_olustur,
 };
 
 pub(super) const DERINLIK_BICIMI: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -163,7 +160,8 @@ impl UcBoyutGrafik {
         }
 
         for doku in &dunya.dokular()[self.kayitli_dokular.len()..] {
-            self.kayitli_dokular.push(GpuDoku::yeni(aygit, kuyruk, doku));
+            self.kayitli_dokular
+                .push(GpuDoku::yeni(aygit, kuyruk, doku));
         }
         for malzeme in &dunya.malzemeler()[self.kayitli_malzemeler.len()..] {
             let doku = if let Some(kimlik) = malzeme.temel_doku() {
@@ -309,11 +307,7 @@ impl UcBoyutGrafik {
         let mut onceki_malzeme = None;
         for grup in &self.cizim_gruplari {
             if onceki_malzeme != Some(grup.anahtar.malzeme) {
-                cizim_gecisi.set_bind_group(
-                    1,
-                    &self.gpu_malzeme(grup.anahtar.malzeme).grup,
-                    &[],
-                );
+                cizim_gecisi.set_bind_group(1, &self.gpu_malzeme(grup.anahtar.malzeme).grup, &[]);
                 onceki_malzeme = Some(grup.anahtar.malzeme);
             }
             let mesh = self.gpu_mesh(grup.anahtar.mesh);

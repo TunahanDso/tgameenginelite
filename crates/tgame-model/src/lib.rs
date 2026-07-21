@@ -287,9 +287,7 @@ impl MeshVerisi {
         let tepe_sayisi = u32::try_from(konumlar.len())
             .map_err(|_| OyunHatasi::yeni("Mesh desteklenenden fazla tepe içeriyor."))?;
         if indeksler.iter().any(|indeks| *indeks >= tepe_sayisi) {
-            return Err(OyunHatasi::yeni(
-                "Mesh geçersiz bir tepe indeksi içeriyor.",
-            ));
+            return Err(OyunHatasi::yeni("Mesh geçersiz bir tepe indeksi içeriyor."));
         }
         let sinir_kuresi = sinir_kuresini_hesapla(&konumlar);
 
@@ -474,9 +472,8 @@ impl ModelVerisi {
             }
         }
         if ornekler.is_empty() {
-            ornekler.extend(
-                (0..meshler.len()).map(|indeks| ModelOrnegi::yeni(indeks, Matris4::BIRIM)),
-            );
+            ornekler
+                .extend((0..meshler.len()).map(|indeks| ModelOrnegi::yeni(indeks, Matris4::BIRIM)));
         }
 
         Ok(Self { meshler, ornekler })
@@ -521,7 +518,8 @@ fn dugum_orneklerini_topla(
     }
     if let Some(mesh) = dugum.mesh() {
         for (primitive_sirasi, _) in mesh.primitives().enumerate() {
-            if let Some(mesh_indeksi) = primitive_eslemeleri.get(&(mesh.index(), primitive_sirasi)) {
+            if let Some(mesh_indeksi) = primitive_eslemeleri.get(&(mesh.index(), primitive_sirasi))
+            {
                 hedef.push(ModelOrnegi::yeni(*mesh_indeksi, dunya_matrisi));
             }
         }
@@ -704,9 +702,7 @@ fn indeks_usize(indeks: u32, tepe_sayisi: usize) -> OyunSonucu<usize> {
     let indeks = usize::try_from(indeks)
         .map_err(|_| OyunHatasi::yeni("Mesh indeksi bu platformda temsil edilemiyor."))?;
     if indeks >= tepe_sayisi {
-        return Err(OyunHatasi::yeni(
-            "Mesh indeksi tepe sınırını aşıyor.",
-        ));
+        return Err(OyunHatasi::yeni("Mesh indeksi tepe sınırını aşıyor."));
     }
     Ok(indeks)
 }
@@ -721,11 +717,7 @@ mod testler {
 
     #[test]
     fn gecersiz_mesh_reddedilir() {
-        let sonuc = MeshVerisi::yeni(
-            vec![Vektor3::SIFIR],
-            vec![Vektor3::YUKARI],
-            vec![0, 1, 2],
-        );
+        let sonuc = MeshVerisi::yeni(vec![Vektor3::SIFIR], vec![Vektor3::YUKARI], vec![0, 1, 2]);
 
         assert!(sonuc.is_err());
     }
@@ -777,8 +769,7 @@ mod testler {
 
     #[test]
     fn gecersiz_doku_bayt_sayisi_reddedilir() {
-        let sonuc =
-            DokuVerisi::yeni_rgba8(2, 2, vec![255; 15], OrnekleyiciVerisi::default());
+        let sonuc = DokuVerisi::yeni_rgba8(2, 2, vec![255; 15], OrnekleyiciVerisi::default());
 
         assert!(sonuc.is_err());
     }
@@ -786,7 +777,11 @@ mod testler {
     #[test]
     fn sonlu_olmayan_mesh_reddedilir() {
         let sonuc = MeshVerisi::yeni(
-            vec![Vektor3::SIFIR, Vektor3::yeni(f32::NAN, 0.0, 0.0), Vektor3::YUKARI],
+            vec![
+                Vektor3::SIFIR,
+                Vektor3::yeni(f32::NAN, 0.0, 0.0),
+                Vektor3::YUKARI,
+            ],
             vec![Vektor3::ILERI; 3],
             vec![0, 1, 2],
         );
