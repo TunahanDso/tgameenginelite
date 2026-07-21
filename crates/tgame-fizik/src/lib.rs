@@ -85,9 +85,7 @@ impl FizikDunyasi {
     /// Kimliği verilen varlığın fizik gövdesini döndürür.
     #[must_use]
     pub fn govde(&self, varlik: VarlikKimligi) -> Option<&FizikGovdesi> {
-        self.govdeler
-            .iter()
-            .find(|govde| govde.varlik() == varlik)
+        self.govdeler.iter().find(|govde| govde.varlik() == varlik)
     }
 
     /// Kimliği verilen varlığın fizik gövdesini değiştirilebilir döndürür.
@@ -123,9 +121,9 @@ impl FizikDunyasi {
             .iter()
             .filter(|govde| govde.tur() == GovdeTuru::Statik)
             .filter_map(|govde| {
-                dunya.varlik(govde.varlik()).map(|varlik| {
-                    Aabb3::yeni(varlik.donusumu3b().konum, govde.yari_boyut())
-                })
+                dunya
+                    .varlik(govde.varlik())
+                    .map(|varlik| Aabb3::yeni(varlik.donusumu3b().konum, govde.yari_boyut()))
             })
             .collect::<Vec<_>>();
         let yercekimi = self.yercekimi;
@@ -183,8 +181,8 @@ fn eksende_hareket_et(
         }
 
         let statik_merkez = eksen_degeri(statik.merkez(), eksen);
-        let toplam_yari_boyut = eksen_degeri(statik.yari_boyut(), eksen)
-            + eksen_degeri(govde.yari_boyut(), eksen);
+        let toplam_yari_boyut =
+            eksen_degeri(statik.yari_boyut(), eksen) + eksen_degeri(govde.yari_boyut(), eksen);
         let cozulmus = if hareket > 0.0 {
             statik_merkez - toplam_yari_boyut
         } else {

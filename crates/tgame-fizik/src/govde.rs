@@ -40,11 +40,7 @@ impl FizikGovdesi {
         Self {
             varlik,
             tur,
-            yari_boyut: Vektor3::yeni(
-                yari_boyut.x.abs(),
-                yari_boyut.y.abs(),
-                yari_boyut.z.abs(),
-            ),
+            yari_boyut: Vektor3::yeni(yari_boyut.x.abs(), yari_boyut.y.abs(), yari_boyut.z.abs()),
             hiz: Vektor3::SIFIR,
             yercekimi_etkin: tur == GovdeTuru::Dinamik,
             zeminde: false,
@@ -126,7 +122,11 @@ impl FizikGovdesi {
 }
 
 fn yari_boyut(olcek: Vektor3) -> Vektor3 {
-    Vektor3::yeni(olcek.x.abs() * 0.5, olcek.y.abs() * 0.5, olcek.z.abs() * 0.5)
+    Vektor3::yeni(
+        olcek.x.abs() * 0.5,
+        olcek.y.abs() * 0.5,
+        olcek.z.abs() * 0.5,
+    )
 }
 
 #[cfg(test)]

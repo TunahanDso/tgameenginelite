@@ -13,11 +13,7 @@ impl Aabb3 {
     pub fn yeni(merkez: Vektor3, yari_boyut: Vektor3) -> Self {
         Self {
             merkez,
-            yari_boyut: Vektor3::yeni(
-                yari_boyut.x.abs(),
-                yari_boyut.y.abs(),
-                yari_boyut.z.abs(),
-            ),
+            yari_boyut: Vektor3::yeni(yari_boyut.x.abs(), yari_boyut.y.abs(), yari_boyut.z.abs()),
         }
     }
 

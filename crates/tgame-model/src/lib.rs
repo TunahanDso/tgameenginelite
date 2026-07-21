@@ -118,10 +118,7 @@ impl ModelVerisi {
                             .map(|normal| Vektor3::yeni(normal[0], normal[1], normal[2]).birim())
                             .collect::<Vec<_>>()
                     })
-                    .map_or_else(
-                        || normalleri_hesapla(&konumlar, &indeksler),
-                        Ok,
-                    )?;
+                    .map_or_else(|| normalleri_hesapla(&konumlar, &indeksler), Ok)?;
 
                 meshler.push(MeshVerisi::yeni(konumlar, normaller, indeksler)?);
             }
@@ -199,11 +196,7 @@ mod testler {
 
     #[test]
     fn gecersiz_indeks_mesh_olusturmaz() {
-        let sonuc = MeshVerisi::yeni(
-            vec![Vektor3::SIFIR],
-            vec![Vektor3::YUKARI],
-            vec![1],
-        );
+        let sonuc = MeshVerisi::yeni(vec![Vektor3::SIFIR], vec![Vektor3::YUKARI], vec![1]);
 
         assert!(sonuc.is_err());
     }

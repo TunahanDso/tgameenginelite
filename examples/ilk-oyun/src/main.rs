@@ -1,6 +1,6 @@
 use tgame::onsoz::{
-    Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Kamera3B, Oyun, OyunAkisi, OyunSonucu,
-    Renk, Sahne, Tus, Varlik, VarlikKimligi, Vektor3,
+    Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Kamera3B, Oyun, OyunAkisi, OyunSonucu, Renk,
+    Sahne, Tus, Varlik, VarlikKimligi, Vektor3,
 };
 
 const OYUNCU_HIZI: f32 = 4.8;
@@ -198,8 +198,7 @@ fn sutunlari_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) {
     for (konum, renk, yukseklik) in sutunlar {
         let olcek = Vektor3::yeni(0.8, yukseklik, 0.8);
         let kimlik = dunya.varlik_ekle(
-            Varlik::kup("Sütun", renk)
-                .donusum3b(Donusum3B::yeni().konum(konum).olcek(olcek)),
+            Varlik::kup("Sütun", renk).donusum3b(Donusum3B::yeni().konum(konum).olcek(olcek)),
         );
         fizik.govde_ekle(FizikGovdesi::statik_kup(kimlik, olcek));
     }
