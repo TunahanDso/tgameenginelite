@@ -1,6 +1,7 @@
 use tgame_cekirdek::{OyunHatasi, OyunSonucu};
-use tgame_model::MeshVerisi;
+use tgame_model::{MalzemeVerisi, MeshVerisi};
 
+use super::gpu_malzeme::GpuMalzeme;
 use super::mesh::{KUP_INDEKS_SAYISI, indeks_baytlari, tepe_baytlari};
 
 pub(super) struct GpuMesh {
@@ -8,10 +9,15 @@ pub(super) struct GpuMesh {
     pub(super) indeks: wgpu::Buffer,
     pub(super) indeks_sayisi: u32,
     pub(super) indeks_bicimi: wgpu::IndexFormat,
+    pub(super) malzeme: GpuMalzeme,
 }
 
 impl GpuMesh {
-    pub(super) fn kup(aygit: &wgpu::Device, kuyruk: &wgpu::Queue) -> Self {
+    pub(super) fn kup(
+        aygit: &wgpu::Device,
+        kuyruk: &wgpu::Queue,
+        malzeme_yerlesimi: &wgpu::BindGroupLayout,
+    ) -> Self {
         let tepe_baytlari = tepe_baytlari();
         let indeks_baytlari = indeks_baytlari();
         Self {
@@ -31,17 +37,31 @@ impl GpuMesh {
             ),
             indeks_sayisi: KUP_INDEKS_SAYISI,
             indeks_bicimi: wgpu::IndexFormat::Uint16,
+            malzeme: GpuMalzeme::yeni(
+                aygit,
+                kuyruk,
+                malzeme_yerlesimi,
+                &MalzemeVerisi::default(),
+            ),
         }
     }
 
     pub(super) fn kayitli(
         aygit: &wgpu::Device,
         kuyruk: &wgpu::Queue,
+        malzeme_yerlesimi: &wgpu::BindGroupLayout,
         mesh: &MeshVerisi,
     ) -> OyunSonucu<Self> {
-        let mut tepe_baytlari = Vec::with_capacity(mesh.konumlar().len().saturating_mul(24));
-        for (konum, normal) in mesh.konumlar().iter().zip(mesh.normaller()) {
-            for deger in [konum.x, konum.y, konum.z, normal.x, normal.y, normal.z] {
+        let mut tepe_baytlari = Vec::with_capacity(mesh.konumlar().len().saturating_mul(32));
+        for ((konum, normal), uv) in mesh
+            .konumlar()
+            .iter()
+            .zip(mesh.normaller())
+            .zip(mesh.uvler())
+        {
+            for deger in [
+                konum.x, konum.y, konum.z, normal.x, normal.y, normal.z, uv.x, uv.y,
+            ] {
                 tepe_baytlari.extend_from_slice(&deger.to_le_bytes());
             }
         }
@@ -70,6 +90,7 @@ impl GpuMesh {
             ),
             indeks_sayisi,
             indeks_bicimi: wgpu::IndexFormat::Uint32,
+            malzeme: GpuMalzeme::yeni(aygit, kuyruk, malzeme_yerlesimi, mesh.malzeme()),
         })
     }
 }
@@ -96,18 +117,21 @@ fn tampon_olustur(
 
 #[cfg(test)]
 mod testler {
-    use tgame_matematik::Vektor3;
-    use tgame_model::MeshVerisi;
+    use tgame_matematik::{Vektor2, Vektor3};
+    use tgame_model::{MalzemeVerisi, MeshVerisi};
 
     #[test]
-    fn genel_mesh_tepe_verisi_konum_ve_normal_tasir() {
-        let mesh = MeshVerisi::yeni(
+    fn genel_mesh_tepe_verisi_konum_normal_ve_uv_tasir() {
+        let mesh = MeshVerisi::yeni_malzemeli(
             vec![Vektor3::SIFIR, Vektor3::SAG, Vektor3::YUKARI],
             vec![Vektor3::ILERI; 3],
+            vec![Vektor2::SIFIR, Vektor2::SAG, Vektor2::YUKARI],
             vec![0, 1, 2],
+            MalzemeVerisi::default(),
         )
         .expect("Test mesh'i geçerli olmalı.");
 
-        assert_eq!(mesh.konumlar().len().saturating_mul(24), 72);
+        assert_eq!(mesh.konumlar().len().saturating_mul(32), 96);
+        assert_eq!(mesh.uvler()[1], Vektor2::SAG);
     }
 }
