@@ -1,9 +1,9 @@
 use tgame::onsoz::{
-    AlanKimligi, AlanTetikleyicisi, DiyalogDugumu, DiyalogKimligi, DiyalogSecenegi,
-    DiyalogTanimi, EsyaKimligi, EsyaTanimi, EtkilesimKimligi, EtkilesimNoktasi, Eylem,
-    GorevAdimi, GorevAsamasi, GorevHedefi, GorevKimligi, GorevTanimi,
-    KontrolNoktasiKimligi, Kosul, KuralKimligi, KutuAlan, Macera, OlayFiltresi,
-    OlayKurali, OyunOlayi, OyunSonucu, SahneKimligi, SahneTanimi, Tekrarlama, Vektor3,
+    AlanKimligi, AlanTetikleyicisi, DiyalogDugumu, DiyalogKimligi, DiyalogSecenegi, DiyalogTanimi,
+    EsyaKimligi, EsyaTanimi, EtkilesimKimligi, EtkilesimNoktasi, Eylem, GorevAdimi, GorevAsamasi,
+    GorevHedefi, GorevKimligi, GorevTanimi, KontrolNoktasiKimligi, Kosul, KuralKimligi, KutuAlan,
+    Macera, OlayFiltresi, OlayKurali, OyunOlayi, OyunSonucu, SahneKimligi, SahneTanimi, Tekrarlama,
+    Vektor3,
 };
 
 #[derive(Clone)]
@@ -123,10 +123,7 @@ fn diyalogu_tanimla(macera: &mut Macera, kimlikler: &MaceraKimlikleri) {
     ));
 }
 
-fn sahneleri_tanimla(
-    macera: &mut Macera,
-    kimlikler: &MaceraKimlikleri,
-) -> OyunSonucu {
+fn sahneleri_tanimla(macera: &mut Macera, kimlikler: &MaceraKimlikleri) -> OyunSonucu {
     macera.sahne_tanimla(
         SahneTanimi::yeni(kimlikler.koy.clone(), "Sisli Köy Meydanı")
             .giris_noktasi("baslangic", Vektor3::yeni(0.0, 2.5, 3.0)),
@@ -146,9 +143,7 @@ fn etkilesimleri_tanimla(macera: &mut Macera, kimlikler: &MaceraKimlikleri) {
             Vektor3::yeni(0.0, 0.0, 2.0),
             2.2,
         )
-        .eylemler(vec![Eylem::DiyalogBaslat(
-            kimlikler.gozcu_diyalogu.clone(),
-        )])
+        .eylemler(vec![Eylem::DiyalogBaslat(kimlikler.gozcu_diyalogu.clone())])
         .tekrarlama(Tekrarlama::HerZaman),
     );
     muhur_etkilesimlerini_tanimla(macera, kimlikler);
@@ -186,10 +181,7 @@ fn tapinagi_tanimla(macera: &mut Macera, kimlikler: &MaceraKimlikleri) {
     macera.alan_tanimla(
         AlanTetikleyicisi::yeni(
             kimlikler.tapinak_alani.clone(),
-            KutuAlan::yeni(
-                Vektor3::yeni(0.0, 0.5, -4.4),
-                Vektor3::yeni(2.2, 2.5, 1.5),
-            ),
+            KutuAlan::yeni(Vektor3::yeni(0.0, 0.5, -4.4), Vektor3::yeni(2.2, 2.5, 1.5)),
         )
         .kosullar(vec![
             Kosul::EsyaEnAz {

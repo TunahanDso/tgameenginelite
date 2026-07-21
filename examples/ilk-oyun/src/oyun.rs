@@ -4,9 +4,8 @@ mod sahne;
 use macera_icerigi::{MaceraKimlikleri, macerayi_olustur};
 use sahne::{OYUNCU_OLCEGI, SahneKurulumu, sahneyi_olustur};
 use tgame::onsoz::{
-    Dunya, FizikDunyasi, Girdi, GorevAsamasi, GorevIlerlemesi, KayitYoneticisi,
-    Macera, Oyun, OyunAkisi, OyunSonucu, Sahne, SahneKimligi, Tus, VarlikKimligi,
-    Vektor3, Zaman,
+    Dunya, FizikDunyasi, Girdi, GorevAsamasi, GorevIlerlemesi, KayitYoneticisi, Macera, Oyun,
+    OyunAkisi, OyunSonucu, Sahne, SahneKimligi, Tus, VarlikKimligi, Vektor3, Zaman,
 };
 
 const OYUNCU_HIZI: f32 = 4.8;

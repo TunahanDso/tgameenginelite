@@ -1,7 +1,6 @@
 use tgame::onsoz::{
-    Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Kamera3B, MalzemeKimligi,
-    MalzemeVerisi, MeshKimligi, ModelVerisi, OyunHatasi, OyunSonucu, Renk, Varlik,
-    VarlikKimligi, Vektor3,
+    Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Kamera3B, MalzemeKimligi, MalzemeVerisi,
+    MeshKimligi, ModelVerisi, OyunHatasi, OyunSonucu, Renk, Varlik, VarlikKimligi, Vektor3,
 };
 
 pub(crate) const OYUNCU_OLCEGI: Vektor3 = Vektor3::yeni(0.75, 0.75, 0.75);
@@ -30,8 +29,7 @@ pub(crate) fn sahneyi_olustur() -> OyunSonucu<SahneKurulumu> {
     let piramit_mesh = piramit_meshini_yukle(&mut dunya)?;
     let alternatif_malzeme =
         dunya.malzeme_ekle(MalzemeVerisi::yeni(Renk::yeni(0.08, 0.85, 1.0, 1.0)));
-    let piramitler =
-        piramitleri_ekle(&mut dunya, &mut fizik, piramit_mesh, alternatif_malzeme);
+    let piramitler = piramitleri_ekle(&mut dunya, &mut fizik, piramit_mesh, alternatif_malzeme);
     gorunurluk_stres_sahnesi_ekle(&mut dunya, piramit_mesh);
 
     let oyuncu = dunya.varlik_ekle(
@@ -207,8 +205,7 @@ fn sutunlari_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) {
     for (konum, renk, yukseklik) in sutunlar {
         let olcek = Vektor3::yeni(0.8, yukseklik, 0.8);
         let kimlik = dunya.varlik_ekle(
-            Varlik::kup("Sütun", renk)
-                .donusum3b(Donusum3B::yeni().konum(konum).olcek(olcek)),
+            Varlik::kup("Sütun", renk).donusum3b(Donusum3B::yeni().konum(konum).olcek(olcek)),
         );
         fizik.govde_ekle(FizikGovdesi::statik_kup(kimlik, olcek));
     }
