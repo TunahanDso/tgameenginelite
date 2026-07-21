@@ -3,9 +3,11 @@ resolver = "2"
 members = [
     "crates/tgame",
     "crates/tgame-cekirdek",
+    "crates/tgame-fizik",
     "crates/tgame-girdi",
     "crates/tgame-grafik",
     "crates/tgame-matematik",
+    "crates/tgame-model",
     "crates/tgame-pencere",
     "crates/tgame-sahne",
     "crates/tgame-mod",
