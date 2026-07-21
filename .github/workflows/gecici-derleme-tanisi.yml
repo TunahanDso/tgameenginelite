@@ -10,11 +10,11 @@ jobs:
   tani:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
       - name: Yalnızca derleyici hatalarını göster
         shell: pwsh
         run: |
+          git clone --branch agent/ilk-moduler-iskelet --depth 1 https://github.com/${{ github.repository }} kaynak 2>$null
+          Set-Location kaynak
           $satirlar = cargo check --workspace --all-targets --message-format=json 2>$null
           $hataVar = $false
           foreach ($satir in $satirlar) {
