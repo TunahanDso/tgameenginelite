@@ -1,6 +1,7 @@
 use tgame::onsoz::{
-    Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Girdi, Kamera3B, MeshKimligi, ModelVerisi, Oyun,
-    OyunAkisi, OyunHatasi, OyunSonucu, Renk, Sahne, Tus, Varlik, VarlikKimligi, Vektor3, Zaman,
+    Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Girdi, Kamera3B, MalzemeKimligi, MalzemeVerisi,
+    MeshKimligi, ModelVerisi, Oyun, OyunAkisi, OyunHatasi, OyunSonucu, Renk, Sahne, Tus, Varlik,
+    VarlikKimligi, Vektor3, Zaman,
 };
 
 const OYUNCU_HIZI: f32 = 4.8;
@@ -214,7 +215,10 @@ fn sahneyi_olustur() -> OyunSonucu<SahneKurulumu> {
     zemin_ekle(&mut dunya, &mut fizik);
     sutunlari_ekle(&mut dunya, &mut fizik);
     let piramit_mesh = piramit_meshini_yukle(&mut dunya)?;
-    let piramitler = piramitleri_ekle(&mut dunya, &mut fizik, piramit_mesh);
+    let alternatif_malzeme =
+        dunya.malzeme_ekle(MalzemeVerisi::yeni(Renk::yeni(0.08, 0.85, 1.0, 1.0)));
+    let piramitler = piramitleri_ekle(&mut dunya, &mut fizik, piramit_mesh, alternatif_malzeme);
+    gorunurluk_stres_sahnesi_ekle(&mut dunya, piramit_mesh);
 
     let oyuncu = dunya.varlik_ekle(
         Varlik::kup("Oyuncu", Renk::SARI).donusum3b(
@@ -258,6 +262,7 @@ fn piramitleri_ekle(
     dunya: &mut Dunya,
     fizik: &mut FizikDunyasi,
     mesh: MeshKimligi,
+    alternatif_malzeme: MalzemeKimligi,
 ) -> Vec<VarlikKimligi> {
     let piramitler = [
         (Vektor3::yeni(-3.2, -0.58, -2.8), Renk::MAVI),
@@ -273,11 +278,19 @@ fn piramitleri_ekle(
     let carpisma_olcegi = Vektor3::yeni(1.3, 1.17, 1.3);
     let mut kimlikler = Vec::with_capacity(piramitler.len());
 
-    for (konum, renk) in piramitler {
-        let kimlik = dunya.varlik_ekle(
-            Varlik::mesh("glTF Piramit", mesh, renk)
-                .donusum3b(Donusum3B::yeni().konum(konum).olcek(goruntu_olcegi)),
-        );
+    for (sira, (konum, renk)) in piramitler.into_iter().enumerate() {
+        let varlik = if sira.is_multiple_of(3) {
+            Varlik::mesh_malzemeli(
+                "Alternatif Malzemeli Piramit",
+                mesh,
+                alternatif_malzeme,
+                renk,
+            )
+        } else {
+            Varlik::mesh("Dokulu glTF Piramit", mesh, renk)
+        };
+        let kimlik = dunya
+            .varlik_ekle(varlik.donusum3b(Donusum3B::yeni().konum(konum).olcek(goruntu_olcegi)));
         kimlikler.push(kimlik);
 
         let engel = dunya.varlik_ekle(
@@ -288,6 +301,21 @@ fn piramitleri_ekle(
     }
 
     kimlikler
+}
+
+fn gorunurluk_stres_sahnesi_ekle(dunya: &mut Dunya, mesh: MeshKimligi) {
+    let olcek = Vektor3::yeni(0.35, 0.35, 0.35);
+    for sira in 0_u16..256 {
+        let sutun = f32::from(sira % 16);
+        let satir = f32::from(sira / 16);
+        dunya.varlik_ekle(
+            Varlik::mesh("Frustum Dışı Piramit", mesh, Renk::BEYAZ).donusum3b(
+                Donusum3B::yeni()
+                    .konum(Vektor3::yeni(400.0 + sutun * 2.0, -0.58, -satir * 2.0))
+                    .olcek(olcek),
+            ),
+        );
+    }
 }
 
 fn zemin_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) {
