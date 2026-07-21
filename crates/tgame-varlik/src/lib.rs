@@ -1,7 +1,8 @@
 //! Tgame Engine Lite varlık, dönüşüm, kamera ve dünya kaynak katmanı.
 
+use tgame_cekirdek::{OyunHatasi, OyunSonucu};
 use tgame_matematik::{Matris4, Renk, Vektor2, Vektor3};
-use tgame_model::{MeshVerisi, ModelVerisi};
+use tgame_model::{DokuVerisi, MalzemeVerisi, MeshVerisi, ModelVerisi};
 
 /// Oyun dünyasındaki bir varlığı benzersiz biçimde tanımlar.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -24,6 +25,60 @@ impl MeshKimligi {
     #[must_use]
     pub const fn deger(self) -> usize {
         self.0
+    }
+}
+
+/// Dünya kayıt defterindeki bir dokuyu benzersiz biçimde tanımlar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DokuKimligi(usize);
+
+impl DokuKimligi {
+    /// Kimliğin kayıt defterindeki sayısal değerini döndürür.
+    #[must_use]
+    pub const fn deger(self) -> usize {
+        self.0
+    }
+}
+
+/// Dünya kayıt defterindeki bir malzemeyi benzersiz biçimde tanımlar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct MalzemeKimligi(usize);
+
+impl MalzemeKimligi {
+    /// Kimliğin kayıt defterindeki sayısal değerini döndürür.
+    #[must_use]
+    pub const fn deger(self) -> usize {
+        self.0
+    }
+}
+
+/// Dünya içindeki bağımsız malzeme kaydıdır.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MalzemeKaydi {
+    temel_renk: Renk,
+    temel_doku: Option<DokuKimligi>,
+}
+
+impl MalzemeKaydi {
+    /// Renk ve isteğe bağlı doku kimliğinden malzeme kaydı oluşturur.
+    #[must_use]
+    pub const fn yeni(temel_renk: Renk, temel_doku: Option<DokuKimligi>) -> Self {
+        Self {
+            temel_renk,
+            temel_doku,
+        }
+    }
+
+    /// Malzemenin doğrusal temel rengini döndürür.
+    #[must_use]
+    pub const fn temel_renk(self) -> Renk {
+        self.temel_renk
+    }
+
+    /// Malzemenin taban renk dokusu kimliğini döndürür.
+    #[must_use]
+    pub const fn temel_doku(self) -> Option<DokuKimligi> {
+        self.temel_doku
     }
 }
 
@@ -185,7 +240,9 @@ pub enum Gorunum3B {
     Mesh {
         /// Çizilecek mesh'in kimliği.
         mesh: MeshKimligi,
-        /// Mesh'in temel rengi.
+        /// Varsayılanı geçersiz kılan isteğe bağlı malzeme kimliği.
+        malzeme: Option<MalzemeKimligi>,
+        /// Mesh'in varlık renk çarpanı.
         renk: Renk,
     },
 }
@@ -197,9 +254,11 @@ pub struct Varlik {
     ad: String,
     donusum2b: Donusum2B,
     donusum3b: Donusum3B,
+    kaynak_matrisi: Matris4,
     gorunum2b: Option<Gorunum2B>,
     gorunum3b: Option<Gorunum3B>,
     etkin: bool,
+    gorunurluk_kirpmasini_atla: bool,
 }
 
 impl Varlik {
@@ -211,9 +270,11 @@ impl Varlik {
             ad: ad.into(),
             donusum2b: Donusum2B::yeni(),
             donusum3b: Donusum3B::yeni(),
+            kaynak_matrisi: Matris4::BIRIM,
             gorunum2b: None,
             gorunum3b: None,
             etkin: true,
+            gorunurluk_kirpmasini_atla: false,
         }
     }
 
@@ -229,10 +290,29 @@ impl Varlik {
         Self::yeni(ad).gorunum3b(Gorunum3B::Kup { renk })
     }
 
-    /// Kayıtlı bir mesh'i kullanan üç boyutlu varlık taslağı oluşturur.
+    /// Kayıtlı bir mesh'i varsayılan malzemesiyle kullanan varlık taslağı oluşturur.
     #[must_use]
     pub fn mesh(ad: impl Into<String>, mesh: MeshKimligi, renk: Renk) -> Self {
-        Self::yeni(ad).gorunum3b(Gorunum3B::Mesh { mesh, renk })
+        Self::yeni(ad).gorunum3b(Gorunum3B::Mesh {
+            mesh,
+            malzeme: None,
+            renk,
+        })
+    }
+
+    /// Kayıtlı mesh'i seçilen bağımsız malzemeyle kullanan varlık taslağı oluşturur.
+    #[must_use]
+    pub fn mesh_malzemeli(
+        ad: impl Into<String>,
+        mesh: MeshKimligi,
+        malzeme: MalzemeKimligi,
+        renk: Renk,
+    ) -> Self {
+        Self::yeni(ad).gorunum3b(Gorunum3B::Mesh {
+            mesh,
+            malzeme: Some(malzeme),
+            renk,
+        })
     }
 
     /// Başlangıç iki boyutlu dönüşümünü değiştirir.
@@ -246,6 +326,20 @@ impl Varlik {
     #[must_use]
     pub const fn donusum3b(mut self, donusum: Donusum3B) -> Self {
         self.donusum3b = donusum;
+        self
+    }
+
+    /// glTF node veya başka kaynak tarafından sağlanan yerel matrisi değiştirir.
+    #[must_use]
+    pub const fn kaynak_matrisi(mut self, matris: Matris4) -> Self {
+        self.kaynak_matrisi = matris;
+        self
+    }
+
+    /// Varlığı kamera frustum kırpmasından muaf tutar.
+    #[must_use]
+    pub const fn her_zaman_ciz(mut self) -> Self {
+        self.gorunurluk_kirpmasini_atla = true;
         self
     }
 
@@ -299,6 +393,18 @@ impl Varlik {
         &mut self.donusum3b
     }
 
+    /// Kaynak yerel matrisini döndürür.
+    #[must_use]
+    pub const fn kaynak_matrisi_degeri(&self) -> Matris4 {
+        self.kaynak_matrisi
+    }
+
+    /// Kullanıcı dönüşümüyle kaynak matrisini birleştirir.
+    #[must_use]
+    pub fn model_matrisi(&self) -> Matris4 {
+        self.donusum3b.model_matrisi() * self.kaynak_matrisi
+    }
+
     /// İki boyutlu görünümü döndürür.
     #[must_use]
     pub const fn gorunumu(&self) -> Option<Gorunum2B> {
@@ -320,6 +426,12 @@ impl Varlik {
     /// Varlığın etkinlik durumunu değiştirir.
     pub const fn etkinlestir(&mut self, etkin: bool) {
         self.etkin = etkin;
+    }
+
+    /// Varlığın frustum görünürlük kırpmasını atlayıp atlamadığını döndürür.
+    #[must_use]
+    pub const fn gorunurluk_kirpmasini_atlar_mi(&self) -> bool {
+        self.gorunurluk_kirpmasini_atla
     }
 }
 
@@ -432,11 +544,7 @@ impl Kamera3B {
     /// Kamera görünüm ve perspektif matrislerinin birleşimini döndürür.
     #[must_use]
     pub fn gorunum_izdusum(self, en_boy_orani: f32) -> Matris4 {
-        let guvenli_oran = if en_boy_orani.is_finite() && en_boy_orani > f32::EPSILON {
-            en_boy_orani
-        } else {
-            1.0
-        };
+        let guvenli_oran = guvenli_en_boy_orani(en_boy_orani);
         let gorunum = Matris4::bakis_sag_el(self.konum, self.hedef, self.yukari);
         let izdusum = Matris4::perspektif_sag_el(
             self.dikey_gorus_radyan,
@@ -446,6 +554,32 @@ impl Kamera3B {
         );
         izdusum * gorunum
     }
+
+    /// Dünya uzayındaki bir sınır küresinin perspektif görüş hacminde olup olmadığını döndürür.
+    #[must_use]
+    pub fn kure_gorunur_mu(self, merkez: Vektor3, yaricap: f32, en_boy_orani: f32) -> bool {
+        if !merkez.sonlu_mu() || !yaricap.is_finite() || yaricap < 0.0 {
+            return true;
+        }
+        let ileri = (self.hedef - self.konum).birim();
+        let sag = ileri.capraz(self.yukari).birim();
+        let gercek_yukari = sag.capraz(ileri).birim();
+        if ileri == Vektor3::SIFIR || sag == Vektor3::SIFIR || gercek_yukari == Vektor3::SIFIR {
+            return true;
+        }
+
+        let kameradan = merkez - self.konum;
+        let derinlik = kameradan.nokta(ileri);
+        if derinlik + yaricap < self.yakin || derinlik - yaricap > self.uzak {
+            return false;
+        }
+
+        let kesit_derinligi = derinlik.max(self.yakin);
+        let yari_yukseklik = kesit_derinligi * (self.dikey_gorus_radyan * 0.5).tan();
+        let yari_genislik = yari_yukseklik * guvenli_en_boy_orani(en_boy_orani);
+        kameradan.nokta(sag).abs() <= yari_genislik + yaricap
+            && kameradan.nokta(gercek_yukari).abs() <= yari_yukseklik + yaricap
+    }
 }
 
 impl Default for Kamera3B {
@@ -454,11 +588,14 @@ impl Default for Kamera3B {
     }
 }
 
-/// Varlıkları, mesh kaynaklarını, dünya boyutunu ve etkin kameraları saklar.
-#[derive(Debug, Clone, Default)]
+/// Varlıkları, geometriyi, dokuları, malzemeleri ve etkin kameraları saklar.
+#[derive(Debug, Clone)]
 pub struct Dunya {
     varliklar: Vec<Varlik>,
     meshler: Vec<MeshVerisi>,
+    mesh_malzemeleri: Vec<MalzemeKimligi>,
+    dokular: Vec<DokuVerisi>,
+    malzemeler: Vec<MalzemeKaydi>,
     boyut: DunyaBoyutu,
     kamera2b: Kamera2B,
     kamera3b: Kamera3B,
@@ -494,10 +631,40 @@ impl Dunya {
         kimlik
     }
 
-    /// Dünyaya tek mesh ekler ve sabit kaynak kimliğini döndürür.
+    /// Dünyaya doku ekler; eşit kaynak daha önce kaydedildiyse mevcut kimliği döndürür.
+    pub fn doku_ekle(&mut self, doku: DokuVerisi) -> DokuKimligi {
+        if let Some(indeks) = self.dokular.iter().position(|kayit| kayit == &doku) {
+            return DokuKimligi(indeks);
+        }
+        let kimlik = DokuKimligi(self.dokular.len());
+        self.dokular.push(doku);
+        kimlik
+    }
+
+    /// Dünyaya malzeme ekler; eşit renk ve doku bileşimi mevcutsa onu tekrar kullanır.
+    pub fn malzeme_ekle(&mut self, malzeme: MalzemeVerisi) -> MalzemeKimligi {
+        let (temel_renk, temel_doku) = malzeme.parcalara_ayir();
+        let temel_doku = temel_doku.map(|doku| self.doku_ekle(doku));
+        let kayit = MalzemeKaydi::yeni(temel_renk, temel_doku);
+        if let Some(indeks) = self
+            .malzemeler
+            .iter()
+            .position(|mevcut| *mevcut == kayit)
+        {
+            return MalzemeKimligi(indeks);
+        }
+        let kimlik = MalzemeKimligi(self.malzemeler.len());
+        self.malzemeler.push(kayit);
+        kimlik
+    }
+
+    /// Dünyaya tek mesh ekler; içindeki malzeme ve doku bağımsız kayda ayrılır.
     pub fn mesh_ekle(&mut self, mesh: MeshVerisi) -> MeshKimligi {
+        let (mesh, malzeme) = mesh.geometri_ve_malzemeye_ayir();
+        let malzeme = self.malzeme_ekle(malzeme);
         let kimlik = MeshKimligi(self.meshler.len());
         self.meshler.push(mesh);
+        self.mesh_malzemeleri.push(malzeme);
         kimlik
     }
 
@@ -508,6 +675,40 @@ impl Dunya {
             .into_iter()
             .map(|mesh| self.mesh_ekle(mesh))
             .collect()
+    }
+
+    /// Modelin varsayılan glTF sahnesini node dönüşümleriyle varlıklara dönüştürür.
+    ///
+    /// # Errors
+    ///
+    /// Bir sahne örneği model içinde bulunmayan mesh sıra numarasına işaret ederse
+    /// [`OyunHatasi`] döndürür.
+    pub fn model_sahnesi_ekle(
+        &mut self,
+        ad_koku: impl Into<String>,
+        model: ModelVerisi,
+        renk: Renk,
+    ) -> OyunSonucu<Vec<VarlikKimligi>> {
+        let ad_koku = ad_koku.into();
+        let (meshler, ornekler) = model.parcalara_ayir();
+        let mesh_kimlikleri = meshler
+            .into_iter()
+            .map(|mesh| self.mesh_ekle(mesh))
+            .collect::<Vec<_>>();
+        let mut kimlikler = Vec::with_capacity(ornekler.len());
+
+        for (sira, ornek) in ornekler.into_iter().enumerate() {
+            let mesh = mesh_kimlikleri
+                .get(ornek.mesh_indeksi())
+                .copied()
+                .ok_or_else(|| {
+                    OyunHatasi::yeni("Model sahnesi bulunmayan bir mesh sıra numarası içeriyor.")
+                })?;
+            let varlik = Varlik::mesh(format!("{ad_koku} {}", sira + 1), mesh, renk)
+                .kaynak_matrisi(ornek.dunya_matrisi());
+            kimlikler.push(self.varlik_ekle(varlik));
+        }
+        Ok(kimlikler)
     }
 
     /// Kimliği verilen varlığı döndürür.
@@ -528,6 +729,24 @@ impl Dunya {
         self.meshler.get(kimlik.0)
     }
 
+    /// Mesh'in içe aktarılmış varsayılan malzeme kimliğini döndürür.
+    #[must_use]
+    pub fn mesh_malzemesi(&self, kimlik: MeshKimligi) -> Option<MalzemeKimligi> {
+        self.mesh_malzemeleri.get(kimlik.0).copied()
+    }
+
+    /// Kimliği verilen doku verisini döndürür.
+    #[must_use]
+    pub fn doku(&self, kimlik: DokuKimligi) -> Option<&DokuVerisi> {
+        self.dokular.get(kimlik.0)
+    }
+
+    /// Kimliği verilen bağımsız malzeme kaydını döndürür.
+    #[must_use]
+    pub fn malzeme(&self, kimlik: MalzemeKimligi) -> Option<MalzemeKaydi> {
+        self.malzemeler.get(kimlik.0).copied()
+    }
+
     /// Dünyadaki bütün varlıkları eklenme sırasıyla döndürür.
     #[must_use]
     pub fn varliklar(&self) -> &[Varlik] {
@@ -538,6 +757,24 @@ impl Dunya {
     #[must_use]
     pub fn meshler(&self) -> &[MeshVerisi] {
         &self.meshler
+    }
+
+    /// Mesh kayıtlarıyla aynı sıradaki varsayılan malzeme kimliklerini döndürür.
+    #[must_use]
+    pub fn mesh_malzemeleri(&self) -> &[MalzemeKimligi] {
+        &self.mesh_malzemeleri
+    }
+
+    /// Tekilleştirilmiş bütün doku kaynaklarını döndürür.
+    #[must_use]
+    pub fn dokular(&self) -> &[DokuVerisi] {
+        &self.dokular
+    }
+
+    /// Tekilleştirilmiş bütün malzeme kayıtlarını döndürür.
+    #[must_use]
+    pub fn malzemeler(&self) -> &[MalzemeKaydi] {
+        &self.malzemeler
     }
 
     /// Etkin iki boyutlu kamerayı döndürür.
@@ -575,15 +812,49 @@ impl Dunya {
     }
 }
 
+impl Default for Dunya {
+    fn default() -> Self {
+        Self {
+            varliklar: Vec::new(),
+            meshler: Vec::new(),
+            mesh_malzemeleri: Vec::new(),
+            dokular: Vec::new(),
+            malzemeler: Vec::new(),
+            boyut: DunyaBoyutu::IkiBoyut,
+            kamera2b: Kamera2B::default(),
+            kamera3b: Kamera3B::default(),
+        }
+    }
+}
+
+fn guvenli_en_boy_orani(en_boy_orani: f32) -> f32 {
+    if en_boy_orani.is_finite() && en_boy_orani > f32::EPSILON {
+        en_boy_orani
+    } else {
+        1.0
+    }
+}
+
 #[cfg(test)]
 mod testler {
-    use tgame_matematik::{Renk, Vektor2, Vektor3};
-    use tgame_model::MeshVerisi;
+    use tgame_matematik::{Matris4, Renk, Vektor2, Vektor3};
+    use tgame_model::{DokuVerisi, MalzemeVerisi, MeshVerisi, OrnekleyiciVerisi};
 
-    use super::{Donusum2B, Donusum3B, Dunya, DunyaBoyutu, Varlik};
+    use super::{Donusum2B, Donusum3B, Dunya, DunyaBoyutu, Kamera3B, Varlik};
 
     fn yakin(sol: f32, sag: f32) -> bool {
         (sol - sag).abs() < 0.000_01
+    }
+
+    fn test_mesh(malzeme: MalzemeVerisi) -> MeshVerisi {
+        MeshVerisi::yeni_malzemeli(
+            vec![Vektor3::SIFIR, Vektor3::SAG, Vektor3::YUKARI],
+            vec![Vektor3::ILERI; 3],
+            vec![Vektor2::SIFIR, Vektor2::SAG, Vektor2::YUKARI],
+            vec![0, 1, 2],
+            malzeme,
+        )
+        .expect("Test mesh'i geçerli olmalı.")
     }
 
     #[test]
@@ -620,15 +891,50 @@ mod testler {
     }
 
     #[test]
+    fn ayni_doku_ve_malzeme_tek_kayit_olur() {
+        let doku = DokuVerisi::yeni_rgba8(
+            1,
+            1,
+            vec![255; 4],
+            OrnekleyiciVerisi::default(),
+        )
+        .expect("Doku geçerli olmalı.");
+        let malzeme = MalzemeVerisi::yeni(Renk::BEYAZ).temel_doku(doku);
+        let mut dunya = Dunya::yeni_3b();
+        let birinci = dunya.mesh_ekle(test_mesh(malzeme.clone()));
+        let ikinci = dunya.mesh_ekle(test_mesh(malzeme));
+
+        assert_eq!(dunya.dokular().len(), 1);
+        assert_eq!(dunya.malzemeler().len(), 1);
+        assert_eq!(dunya.mesh_malzemesi(birinci), dunya.mesh_malzemesi(ikinci));
+    }
+
+    #[test]
+    fn kaynak_matrisi_kullanici_donusumunun_altinda_kalir() {
+        let varlik = Varlik::yeni("Node")
+            .donusum3b(Donusum3B::yeni().konum(Vektor3::new(2.0, 0.0, 0.0)))
+            .kaynak_matrisi(Matris4::oteleme(Vektor3::yeni(0.0, 3.0, 0.0)));
+        let konum = varlik.model_matrisi().noktayi_donustur(Vektor3::SIFIR);
+
+        assert_eq!(konum, Vektor3::yeni(2.0, 3.0, 0.0));
+    }
+
+    #[test]
+    fn kamera_frustum_disindaki_kureyi_eler() {
+        let kamera = Kamera3B::yeni()
+            .konum(Vektor3::SIFIR)
+            .hedef(Vektor3::ILERI)
+            .kirpma(0.1, 50.0);
+
+        assert!(kamera.kure_gorunur_mu(Vektor3::yeni(0.0, 0.0, -5.0), 0.5, 16.0 / 9.0));
+        assert!(!kamera.kure_gorunur_mu(Vektor3::yeni(100.0, 0.0, -5.0), 0.5, 16.0 / 9.0));
+        assert!(!kamera.kure_gorunur_mu(Vektor3::yeni(0.0, 0.0, 5.0), 0.5, 16.0 / 9.0));
+    }
+
+    #[test]
     fn uc_boyutlu_dunya_mesh_kaynagini_paylasir() {
         let mut dunya = Dunya::yeni_3b();
-        let mesh = MeshVerisi::yeni(
-            vec![Vektor3::SIFIR, Vektor3::SAG, Vektor3::YUKARI],
-            vec![Vektor3::ILERI; 3],
-            vec![0, 1, 2],
-        )
-        .expect("Test mesh'i geçerli olmalı.");
-        let mesh = dunya.mesh_ekle(mesh);
+        let mesh = dunya.mesh_ekle(test_mesh(MalzemeVerisi::default()));
         let kimlik = dunya.varlik_ekle(
             Varlik::mesh("Mesh", mesh, Renk::SARI)
                 .donusum3b(Donusum3B::yeni().konum(Vektor3::yeni(0.0, 1.0, -2.0))),
@@ -641,7 +947,7 @@ mod testler {
             .tasi(Vektor3::SAG * 2.0);
 
         assert_eq!(dunya.boyut(), DunyaBoyutu::UcBoyut);
-        assert!(dunya.mesh(mesh).is_some());
+        assert_eq!(dunya.meshler().len(), 1);
         assert!(yakin(
             dunya
                 .varlik(kimlik)
