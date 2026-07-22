@@ -7,6 +7,7 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
+tgame-arayuz = { path = "../tgame-arayuz" }
 tgame-cekirdek = { path = "../tgame-cekirdek" }
 tgame-matematik = { path = "../tgame-matematik" }
 tgame-model = { path = "../tgame-model" }
