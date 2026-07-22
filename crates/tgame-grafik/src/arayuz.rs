@@ -2,6 +2,7 @@ use glyphon::{
     Attrs, Buffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache,
     TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
 };
+use num_traits::ToPrimitive;
 use tgame_arayuz::Arayuz;
 use tgame_cekirdek::{OyunHatasi, OyunSonucu};
 use wgpu::util::DeviceExt;
@@ -14,7 +15,7 @@ pub(super) struct ArayuzGrafik {
     panel_sayisi: u32,
     font_sistemi: FontSystem,
     swash_onbellegi: SwashCache,
-    metin_onbellegi: Cache,
+    _metin_onbellegi: Cache,
     metin_atlasi: TextAtlas,
     gorus_alani: Viewport,
     metin_cizici: TextRenderer,
@@ -92,7 +93,7 @@ impl ArayuzGrafik {
             panel_sayisi: 0,
             font_sistemi: FontSystem::new(),
             swash_onbellegi: SwashCache::new(),
-            metin_onbellegi,
+            _metin_onbellegi: metin_onbellegi,
             metin_atlasi,
             gorus_alani,
             metin_cizici,
@@ -109,34 +110,7 @@ impl ArayuzGrafik {
     ) -> OyunSonucu {
         self.panel_sayisi = u32::try_from(arayuz.paneller().len())
             .map_err(|_| OyunHatasi::yeni("Arayüz panel sayısı desteklenen sınırı aştı."))?;
-        self.panel_tamponu = if arayuz.paneller().is_empty() {
-            None
-        } else {
-            let mut ham = Vec::with_capacity(arayuz.paneller().len() * 32);
-            let ekran_genisligi = genislik.max(1) as f32;
-            let ekran_yuksekligi = yukseklik.max(1) as f32;
-            for panel in arayuz.paneller() {
-                let alan = panel.alan();
-                let renk = panel.renk();
-                let degerler = [
-                    alan.sol * 2.0 / ekran_genisligi - 1.0,
-                    1.0 - alan.ust * 2.0 / ekran_yuksekligi,
-                    alan.genislik * 2.0 / ekran_genisligi,
-                    alan.yukseklik * 2.0 / ekran_yuksekligi,
-                    renk.kirmizi,
-                    renk.yesil,
-                    renk.mavi,
-                    renk.alfa,
-                ];
-                ham.extend(degerler.iter().flat_map(|deger| deger.to_ne_bytes()));
-            }
-            Some(aygit.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Tgame Arayüz Panel Örnek Tamponu"),
-                contents: &ham,
-                usage: wgpu::BufferUsages::VERTEX,
-            }))
-        };
-
+        self.panel_tamponu = panel_tamponu_olustur(aygit, arayuz, genislik, yukseklik);
         self.gorus_alani.update(
             kuyruk,
             Resolution {
@@ -163,6 +137,8 @@ impl ArayuzGrafik {
             tamponlar.push(tampon);
         }
 
+        let ekran_genisligi = genislik.to_f32().unwrap_or(f32::MAX);
+        let ekran_yuksekligi = yukseklik.to_f32().unwrap_or(f32::MAX);
         let alanlar = arayuz
             .metinler()
             .iter()
@@ -176,16 +152,16 @@ impl ArayuzGrafik {
                     top: alan.ust,
                     scale: 1.0,
                     bounds: TextBounds {
-                        left: alan.sol.max(0.0) as i32,
-                        top: alan.ust.max(0.0) as i32,
-                        right: (alan.sol + alan.genislik).min(genislik as f32) as i32,
-                        bottom: (alan.ust + alan.yukseklik).min(yukseklik as f32) as i32,
+                        left: guvenli_i32(alan.sol.max(0.0)),
+                        top: guvenli_i32(alan.ust.max(0.0)),
+                        right: guvenli_i32((alan.sol + alan.genislik).min(ekran_genisligi)),
+                        bottom: guvenli_i32((alan.ust + alan.yukseklik).min(ekran_yuksekligi)),
                     },
                     default_color: Color::rgba(
-                        renk.kirmizi_8(),
-                        renk.yesil_8(),
-                        renk.mavi_8(),
-                        renk.alfa_8(),
+                        renk.kirmizi,
+                        renk.yesil,
+                        renk.mavi,
+                        renk.alfa,
                     ),
                     angle: 0.0,
                     rotation_origin: None,
@@ -245,4 +221,48 @@ impl ArayuzGrafik {
     ) {
         *self = Self::yeni(aygit, kuyruk, yuzey_bicimi);
     }
+}
+
+fn panel_tamponu_olustur(
+    aygit: &wgpu::Device,
+    arayuz: &Arayuz,
+    genislik: u32,
+    yukseklik: u32,
+) -> Option<wgpu::Buffer> {
+    if arayuz.paneller().is_empty() {
+        return None;
+    }
+    let mut ham = Vec::with_capacity(arayuz.paneller().len() * 32);
+    let ekran_genisligi = genislik.max(1).to_f32().unwrap_or(f32::MAX);
+    let ekran_yuksekligi = yukseklik.max(1).to_f32().unwrap_or(f32::MAX);
+    for panel in arayuz.paneller() {
+        let alan = panel.alan();
+        let renk = panel.renk();
+        let degerler = [
+            alan.sol * 2.0 / ekran_genisligi - 1.0,
+            1.0 - alan.ust * 2.0 / ekran_yuksekligi,
+            alan.genislik * 2.0 / ekran_genisligi,
+            alan.yukseklik * 2.0 / ekran_yuksekligi,
+            renk.kirmizi,
+            renk.yesil,
+            renk.mavi,
+            renk.alfa,
+        ];
+        ham.extend(degerler.iter().flat_map(|deger| deger.to_ne_bytes()));
+    }
+    Some(aygit.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Tgame Arayüz Panel Örnek Tamponu"),
+        contents: &ham,
+        usage: wgpu::BufferUsages::VERTEX,
+    }))
+}
+
+fn guvenli_i32(deger: f32) -> i32 {
+    deger.round().to_i32().unwrap_or_else(|| {
+        if deger.is_sign_negative() {
+            i32::MIN
+        } else {
+            i32::MAX
+        }
+    })
 }
