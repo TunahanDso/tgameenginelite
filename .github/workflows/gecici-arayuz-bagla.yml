@@ -1,0 +1,88 @@
+name: Gecici Arayuz Bagla
+
+on:
+  push:
+    branches:
+      - agent/ilk-moduler-iskelet
+
+permissions:
+  contents: write
+
+jobs:
+  bagla:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/ilk-moduler-iskelet
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Dünya ve üst API arayüz bağlantısını uygula
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+
+          varlik_yolu = Path("crates/tgame-varlik/src/lib.rs")
+          metin = varlik_yolu.read_text(encoding="utf-8")
+          if "use tgame_arayuz::Arayuz;" not in metin:
+              metin = metin.replace(
+                  "use tgame_cekirdek::{OyunHatasi, OyunSonucu};",
+                  "use tgame_arayuz::Arayuz;\nuse tgame_cekirdek::{OyunHatasi, OyunSonucu};",
+                  1,
+              )
+          if "    arayuz: Arayuz," not in metin:
+              metin = metin.replace(
+                  "    malzemeler: Vec<MalzemeKaydi>,\n    boyut: DunyaBoyutu,",
+                  "    malzemeler: Vec<MalzemeKaydi>,\n    arayuz: Arayuz,\n    boyut: DunyaBoyutu,",
+                  1,
+              )
+          arayuz_yontemleri = '''    /// Ekran arayüzünü döndürür.
+              #[must_use]
+              pub const fn arayuz(&self) -> &Arayuz {
+                  &self.arayuz
+              }
+
+              /// Ekran arayüzünü değiştirilebilir olarak döndürür.
+              #[must_use]
+              pub const fn arayuz_mut(&mut self) -> &mut Arayuz {
+                  &mut self.arayuz
+              }
+
+          '''
+          if "pub const fn arayuz(&self)" not in metin:
+              metin = metin.replace(
+                  "    /// Etkin iki boyutlu kamerayı döndürür.",
+                  arayuz_yontemleri + "    /// Etkin iki boyutlu kamerayı döndürür.",
+                  1,
+              )
+          if "            arayuz: Arayuz::default()," not in metin:
+              metin = metin.replace(
+                  "            malzemeler: Vec::new(),\n            boyut: DunyaBoyutu::IkiBoyut,",
+                  "            malzemeler: Vec::new(),\n            arayuz: Arayuz::default(),\n            boyut: DunyaBoyutu::IkiBoyut,",
+                  1,
+              )
+          varlik_yolu.write_text(metin, encoding="utf-8", newline="\n")
+
+          tgame_yolu = Path("crates/tgame/src/lib.rs")
+          metin = tgame_yolu.read_text(encoding="utf-8")
+          if "pub use tgame_arayuz" not in metin:
+              metin = metin.replace(
+                  "    pub use crate::Oyun;",
+                  "    pub use crate::Oyun;\n    pub use tgame_arayuz::{Arayuz, ArayuzPaneli, EkranDikdortgeni, EkranMetni, EkranRengi};",
+                  1,
+              )
+          tgame_yolu.write_text(metin, encoding="utf-8", newline="\n")
+          '@ | python -
+          cargo fmt --all
+      - name: Değişiklikleri gönder
+        shell: pwsh
+        run: |
+          if (-not (git status --porcelain)) { exit 0 }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/tgame-varlik/src/lib.rs crates/tgame/src/lib.rs
+          git commit -m "Dunya arayuz deposunu ve ust APIyi bagla"
+          git push origin HEAD:agent/ilk-moduler-iskelet
