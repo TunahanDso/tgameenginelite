@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/tgame",
+    "crates/tgame-arayuz",
     "crates/tgame-cekirdek",
     "crates/tgame-fizik",
     "crates/tgame-girdi",
