@@ -5,36 +5,33 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  baglanti:
-    if: github.actor != 'github-actions[bot]'
-    name: Motor bağlantı commit'i
+  denetim:
+    name: Rust kalite denetimi
     runs-on: windows-latest
+
     steps:
       - name: Kaynak kodu al
         uses: actions/checkout@v4
-        with:
-          ref: agent/ilk-moduler-iskelet
 
       - name: Rust araç zincirini kur
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt
+          components: rustfmt, clippy
 
-      - name: Bağlantı betiğini çalıştır
-        run: python tools/gecici_bagla.py
+      - name: Cargo önbelleğini hazırla
+        uses: Swatinem/rust-cache@v2
 
-      - name: Kaynakları biçimlendir
-        run: cargo fmt --all
+      - name: Biçimi denetle
+        run: cargo fmt --all --check
 
-      - name: Bağlantı commit'ini gönder
-        shell: pwsh
-        run: |
-          if (-not (git status --porcelain)) { exit 0 }
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add crates examples Cargo.toml
-          git commit -m "UI doğal dünya savaş AI ve ses olaylarını bağla"
-          git push origin HEAD:agent/ilk-moduler-iskelet
+      - name: Workspace'i denetle
+        run: cargo check --workspace --all-targets
+
+      - name: Clippy denetimini çalıştır
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Testleri çalıştır
+        run: cargo test --workspace --all-targets --all-features
