@@ -2,6 +2,47 @@
 
 use tgame_matematik::Renk;
 
+/// Ekran metinlerinde kullanılan 8 bit sRGB rengidir.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EkranRengi {
+    /// Kırmızı kanal.
+    pub kirmizi: u8,
+    /// Yeşil kanal.
+    pub yesil: u8,
+    /// Mavi kanal.
+    pub mavi: u8,
+    /// Alfa kanalı.
+    pub alfa: u8,
+}
+
+impl EkranRengi {
+    /// Beyaz ekran rengi.
+    pub const BEYAZ: Self = Self::yeni(255, 255, 255, 255);
+    /// Açık sarı vurgu rengi.
+    pub const SARI: Self = Self::yeni(255, 220, 105, 255);
+    /// Açık mavi bilgi rengi.
+    pub const MAVI: Self = Self::yeni(130, 195, 255, 255);
+    /// Açık yeşil başarı rengi.
+    pub const YESIL: Self = Self::yeni(130, 235, 160, 255);
+
+    /// Yeni ekran rengi oluşturur.
+    #[must_use]
+    pub const fn yeni(kirmizi: u8, yesil: u8, mavi: u8, alfa: u8) -> Self {
+        Self {
+            kirmizi,
+            yesil,
+            mavi,
+            alfa,
+        }
+    }
+}
+
+impl Default for EkranRengi {
+    fn default() -> Self {
+        Self::BEYAZ
+    }
+}
+
 /// Ekran üzerindeki iki boyutlu dikdörtgen alanı piksel cinsinden tanımlar.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct EkranDikdortgeni {
@@ -62,7 +103,7 @@ pub struct EkranMetni {
     alan: EkranDikdortgeni,
     punto: f32,
     satir_yuksekligi: f32,
-    renk: Renk,
+    renk: EkranRengi,
 }
 
 impl EkranMetni {
@@ -79,13 +120,13 @@ impl EkranMetni {
             alan,
             punto,
             satir_yuksekligi: punto * 1.3,
-            renk: Renk::BEYAZ,
+            renk: EkranRengi::BEYAZ,
         }
     }
 
     /// Metin rengini değiştirir.
     #[must_use]
-    pub const fn renk(mut self, renk: Renk) -> Self {
+    pub const fn renk(mut self, renk: EkranRengi) -> Self {
         self.renk = renk;
         self
     }
@@ -125,7 +166,7 @@ impl EkranMetni {
 
     /// Metin rengini döndürür.
     #[must_use]
-    pub const fn renk_degeri(&self) -> Renk {
+    pub const fn renk_degeri(&self) -> EkranRengi {
         self.renk
     }
 }
@@ -185,7 +226,10 @@ mod testler {
     fn arayuz_temizligi_butun_ogeleri_siler() {
         let alan = EkranDikdortgeni::yeni(10.0, 10.0, 200.0, 80.0);
         let mut arayuz = Arayuz::yeni();
-        arayuz.panel_ekle(ArayuzPaneli::yeni(alan, Renk::SIYAH));
+        arayuz.panel_ekle(ArayuzPaneli::yeni(
+            alan,
+            Renk::yeni(0.0, 0.0, 0.0, 0.75),
+        ));
         arayuz.metin_ekle(EkranMetni::yeni("Görev", alan, 20.0));
 
         arayuz.temizle();
