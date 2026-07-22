@@ -1,5 +1,6 @@
 //! Tgame Engine Lite varlık, dönüşüm, kamera ve dünya kaynak katmanı.
 
+use tgame_arayuz::Arayuz;
 use tgame_cekirdek::{OyunHatasi, OyunSonucu};
 use tgame_matematik::{Matris4, Renk, Vektor2, Vektor3};
 use tgame_model::{DokuVerisi, MalzemeVerisi, MeshVerisi, ModelVerisi};
@@ -596,6 +597,7 @@ pub struct Dunya {
     mesh_malzemeleri: Vec<MalzemeKimligi>,
     dokular: Vec<DokuVerisi>,
     malzemeler: Vec<MalzemeKaydi>,
+    arayuz: Arayuz,
     boyut: DunyaBoyutu,
     kamera2b: Kamera2B,
     kamera3b: Kamera3B,
@@ -773,6 +775,18 @@ impl Dunya {
         &self.malzemeler
     }
 
+    /// Ekran arayüzünü döndürür.
+    #[must_use]
+    pub const fn arayuz(&self) -> &Arayuz {
+        &self.arayuz
+    }
+
+    /// Ekran arayüzünü değiştirilebilir olarak döndürür.
+    #[must_use]
+    pub const fn arayuz_mut(&mut self) -> &mut Arayuz {
+        &mut self.arayuz
+    }
+
     /// Etkin iki boyutlu kamerayı döndürür.
     #[must_use]
     pub const fn kamera(&self) -> &Kamera2B {
@@ -816,6 +830,7 @@ impl Default for Dunya {
             mesh_malzemeleri: Vec::new(),
             dokular: Vec::new(),
             malzemeler: Vec::new(),
+            arayuz: Arayuz::default(),
             boyut: DunyaBoyutu::IkiBoyut,
             kamera2b: Kamera2B::default(),
             kamera3b: Kamera3B::default(),

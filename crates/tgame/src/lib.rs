@@ -178,6 +178,7 @@ impl fmt::Debug for Oyun {
 /// Oyun geliştiricilerinin tek satırda içe aktaracağı önsöz modülü.
 pub mod onsoz {
     pub use crate::Oyun;
+    pub use tgame_arayuz::{Arayuz, ArayuzPaneli, EkranDikdortgeni, EkranMetni, EkranRengi};
     pub use tgame_cekirdek::{Cozunurluk, OyunHatasi, OyunSonucu};
     pub use tgame_fizik::{Aabb3, FizikDunyasi, FizikGovdesi, FizikRaporu, GovdeTuru};
     pub use tgame_girdi::{FareHareketi, Girdi, Tus};
