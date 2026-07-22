@@ -1,11 +1,15 @@
+mod ekran_arayuzu;
 mod macera_icerigi;
 mod sahne;
 
+use ekran_arayuzu::arayuzu_guncelle;
 use macera_icerigi::{MaceraKimlikleri, macerayi_olustur};
 use sahne::{SahneKurulumu, sahneyi_olustur};
 use tgame::onsoz::{
-    Dunya, FizikDunyasi, Girdi, GorevAsamasi, GorevIlerlemesi, KayitYoneticisi, Macera, Oyun,
-    OyunAkisi, OyunSonucu, Sahne, SahneKimligi, Tus, VarlikKimligi, Vektor3, Zaman,
+    AjanKarari, BasitAjan, Dunya, FizikDunyasi, Girdi, GorevAsamasi, GorevIlerlemesi,
+    KayitYoneticisi, Macera, Oyun, OyunAkisi, OyunOlayi, OyunSonucu, Sahne, SahneKimligi,
+    SavasDunyasi, SavasOlayi, Savasci, SesKuyrugu, SesOlayi, Takim, Tus, VarlikKimligi, Vektor3,
+    Zaman,
 };
 
 const OYUNCU_HIZI: f32 = 4.8;
@@ -19,12 +23,18 @@ struct DemoDurumu {
     fizik: FizikDunyasi,
     oyuncu: VarlikKimligi,
     merkez: VarlikKimligi,
+    muhafiz: VarlikKimligi,
     piramitler: Vec<VarlikKimligi>,
     kamera_yatay: f32,
     kamera_dikey: f32,
     kayitlar: KayitYoneticisi,
     kimlikler: MaceraKimlikleri,
     son_gorev_asamasi: GorevAsamasi,
+    savas: SavasDunyasi,
+    muhafiz_ajani: BasitAjan,
+    sesler: SesKuyrugu,
+    gunluk_acik: bool,
+    bildirim: String,
 }
 
 impl DemoDurumu {
@@ -34,18 +44,46 @@ impl DemoDurumu {
             fizik,
             oyuncu,
             merkez,
+            muhafiz,
             piramitler,
         } = kurulum;
+        let mut savas = SavasDunyasi::yeni();
+        savas.savasci_ekle(
+            oyuncu,
+            Savasci::yeni(
+                Takim::Oyuncu,
+                100.0,
+                24.0,
+                2.1,
+                std::time::Duration::from_millis(520),
+            ),
+        );
+        savas.savasci_ekle(
+            muhafiz,
+            Savasci::yeni(
+                Takim::Dusman,
+                120.0,
+                11.0,
+                1.8,
+                std::time::Duration::from_millis(900),
+            ),
+        );
         let durum = Self {
             fizik,
             oyuncu,
             merkez,
+            muhafiz,
             piramitler,
             kamera_yatay: 0.0,
             kamera_dikey: 0.35,
             kayitlar: KayitYoneticisi::yeni(KAYIT_KLASORU, 3),
             kimlikler,
             son_gorev_asamasi: GorevAsamasi::Kilitli,
+            savas,
+            muhafiz_ajani: BasitAjan::yeni(),
+            sesler: SesKuyrugu::yeni(),
+            gunluk_acik: false,
+            bildirim: "Gözcü Aras'ı bul.".to_owned(),
         };
         (dunya, durum)
     }
@@ -70,15 +108,99 @@ impl DemoDurumu {
             eprintln!("Alan sistemi hatası: {hata}");
         }
         self.macera_girdisini_isle(girdi, dunya, macera, oyuncu_konumu);
+        self.savasi_guncelle(girdi, zaman, dunya, macera, oyuncu_konumu);
         self.sahne_gecisini_uygula(dunya, macera);
         self.gorev_degisimini_yazdir(macera);
         self.sahneyi_canlandir(dunya, kare_saniyesi);
         self.kamerayi_yerlestir(dunya);
+        let oyuncu_can = self
+            .savas
+            .savasci(self.oyuncu)
+            .map_or(0.0, |s| s.can.oran());
+        let muhafiz_can = self
+            .savas
+            .savasci(self.muhafiz)
+            .map_or(0.0, |s| s.can.oran());
+        arayuzu_guncelle(
+            dunya,
+            macera,
+            &self.kimlikler,
+            oyuncu_konumu,
+            self.gunluk_acik,
+            oyuncu_can,
+            muhafiz_can,
+            &self.bildirim,
+        );
 
         if girdi.bu_kare_basildi_mi(Tus::Kacis) {
             OyunAkisi::Kapat
         } else {
             OyunAkisi::DevamEt
+        }
+    }
+
+    fn savasi_guncelle(
+        &mut self,
+        girdi: &Girdi,
+        zaman: &Zaman,
+        dunya: &mut Dunya,
+        macera: &mut Macera,
+        oyuncu_konumu: Vektor3,
+    ) {
+        self.savas.guncelle(zaman.kare_suresi());
+        let muhafiz_canli = self
+            .savas
+            .savasci(self.muhafiz)
+            .is_some_and(|s| s.can.canli_mi());
+        let muhafiz_konumu = dunya
+            .varlik(self.muhafiz)
+            .map_or(Vektor3::SIFIR, |v| v.donusumu3b().konum);
+        let mesafe = (muhafiz_konumu - oyuncu_konumu).uzunluk();
+        if girdi.bu_kare_basildi_mi(Tus::F) && muhafiz_canli {
+            if self.savas.saldir(self.oyuncu, self.muhafiz, mesafe) {
+                self.bildirim = "Taş Muhafız'a saldırdın.".to_owned();
+                self.sesler
+                    .ekle(SesOlayi::dunya("kilic-vurus", muhafiz_konumu, 0.9));
+            } else {
+                self.bildirim = "Saldırı için hedefe yaklaş.".to_owned();
+            }
+        }
+        match self
+            .muhafiz_ajani
+            .karar(muhafiz_konumu, oyuncu_konumu, muhafiz_canli)
+        {
+            AjanKarari::Bekle => {}
+            AjanKarari::TakipEt { yon, hiz } => {
+                if let Some(v) = dunya.varlik_mut(self.muhafiz) {
+                    v.donusumu3b_mut().tasi(yon * hiz * zaman.kare_saniyesi());
+                }
+            }
+            AjanKarari::Saldir => {
+                if self.savas.saldir(self.muhafiz, self.oyuncu, mesafe) {
+                    self.bildirim = "Taş Muhafız sana vurdu!".to_owned();
+                    self.sesler
+                        .ekle(SesOlayi::dunya("tas-vurus", oyuncu_konumu, 0.8));
+                }
+            }
+        }
+        for olay in self.savas.olaylari_al() {
+            if let SavasOlayi::Yenildi { varlik, .. } = olay {
+                if varlik == self.muhafiz {
+                    if let Some(v) = dunya.varlik_mut(self.muhafiz) {
+                        v.etkinlestir(false);
+                    }
+                    let _ = macera.olay_yayinla(OyunOlayi::DusmanYenildi {
+                        dusman: "Taş Muhafız".to_owned(),
+                    });
+                    self.bildirim = "Taş Muhafız yenildi. Kadim mühür çözüldü!".to_owned();
+                    self.sesler.ekle(SesOlayi::ekran("muhafiz-yenildi", 1.0));
+                } else if varlik == self.oyuncu {
+                    self.bildirim = "Yenildin. R ile kontrol noktasına dön.".to_owned();
+                }
+            }
+        }
+        for ses in self.sesler.olaylari_al() {
+            println!("Ses olayı: {} / şiddet {:.2}", ses.ses, ses.siddet);
         }
     }
 
@@ -166,6 +288,7 @@ impl DemoDurumu {
         self.kayit_girdisini_isle(girdi, dunya, macera);
         Self::kontrol_girdisini_isle(girdi, macera);
         if girdi.bu_kare_basildi_mi(Tus::Sekme) {
+            self.gunluk_acik = !self.gunluk_acik;
             self.durum_yazdir(macera);
         }
     }

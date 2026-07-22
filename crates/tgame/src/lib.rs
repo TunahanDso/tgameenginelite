@@ -192,9 +192,13 @@ pub mod onsoz {
     };
     pub use tgame_matematik::{Matris4, Renk, Vektor2, Vektor3};
     pub use tgame_mod::{ModBilgisi, ModYoneticisi};
+    pub use tgame_model::uretim::{AraziUreteci, koni, kure, silindir};
     pub use tgame_model::{
         DokuFiltresi, DokuSarmasi, DokuVerisi, MalzemeVerisi, MeshVerisi, ModelOrnegi, ModelVerisi,
         OrnekleyiciVerisi, SinirKuresi,
+    };
+    pub use tgame_oynanis::{
+        AjanKarari, BasitAjan, Can, SavasDunyasi, SavasOlayi, Savasci, SesKuyrugu, SesOlayi, Takim,
     };
     pub use tgame_pencere::OyunAkisi;
     pub use tgame_sahne::Sahne;

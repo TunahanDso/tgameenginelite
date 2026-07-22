@@ -361,7 +361,9 @@ impl SesKuyrugu {
     /// Boş ses kuyruğu oluşturur.
     #[must_use]
     pub const fn yeni() -> Self {
-        Self { olaylar: Vec::new() }
+        Self {
+            olaylar: Vec::new(),
+        }
     }
 
     /// Kuyruğa ses isteği ekler.
@@ -424,10 +426,11 @@ mod testler {
         );
 
         assert!(savas.saldir(oyuncu, dusman, 1.0));
-        assert!(savas
-            .olaylari_al()
-            .iter()
-            .any(|olay| matches!(olay, SavasOlayi::Yenildi { varlik, .. } if *varlik == dusman)));
+        assert!(
+            savas.olaylari_al().iter().any(
+                |olay| matches!(olay, SavasOlayi::Yenildi { varlik, .. } if *varlik == dusman)
+            )
+        );
     }
 
     #[test]

@@ -226,10 +226,7 @@ mod testler {
     fn arayuz_temizligi_butun_ogeleri_siler() {
         let alan = EkranDikdortgeni::yeni(10.0, 10.0, 200.0, 80.0);
         let mut arayuz = Arayuz::yeni();
-        arayuz.panel_ekle(ArayuzPaneli::yeni(
-            alan,
-            Renk::yeni(0.0, 0.0, 0.0, 0.75),
-        ));
+        arayuz.panel_ekle(ArayuzPaneli::yeni(alan, Renk::yeni(0.0, 0.0, 0.0, 0.75)));
         arayuz.metin_ekle(EkranMetni::yeni("Görev", alan, 20.0));
 
         arayuz.temizle();

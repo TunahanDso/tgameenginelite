@@ -29,9 +29,7 @@ impl AraziUreteci {
         yukseklikler: Vec<f32>,
     ) -> OyunSonucu<Self> {
         if sutun < 2 || satir < 2 {
-            return Err(OyunHatasi::yeni(
-                "Arazi ızgarası en az 2×2 tepe içermeli.",
-            ));
+            return Err(OyunHatasi::yeni("Arazi ızgarası en az 2×2 tepe içermeli."));
         }
         if !hucre_boyutu.is_finite() || hucre_boyutu <= f32::EPSILON {
             return Err(OyunHatasi::yeni(
@@ -114,9 +112,8 @@ impl AraziUreteci {
                 let dunya_x = indeks_f32(x)? * self.hucre_boyutu - yarim_x;
                 let dunya_z = indeks_f32(z)? * self.hucre_boyutu - yarim_z;
                 konumlar.push(Vektor3::yeni(dunya_x, merkez, dunya_z));
-                normaller.push(
-                    Vektor3::yeni(sol - sag, 2.0 * self.hucre_boyutu, geri - ileri).birim(),
-                );
+                normaller
+                    .push(Vektor3::yeni(sol - sag, 2.0 * self.hucre_boyutu, geri - ileri).birim());
                 uvler.push(Vektor2::yeni(
                     indeks_f32(x)? / uv_bolen_x,
                     indeks_f32(z)? / uv_bolen_z,
@@ -345,7 +342,10 @@ fn kapak_ekle(
         let z = aci.sin() * yaricap;
         konumlar.push(Vektor3::yeni(x, y, z));
         normaller.push(normal);
-        uvler.push(Vektor2::yeni(x / yaricap * 0.5 + 0.5, z / yaricap * 0.5 + 0.5));
+        uvler.push(Vektor2::yeni(
+            x / yaricap * 0.5 + 0.5,
+            z / yaricap * 0.5 + 0.5,
+        ));
     }
     for i in 0..dilim {
         let a = halka_baslangici + indeks_u32(i)?;

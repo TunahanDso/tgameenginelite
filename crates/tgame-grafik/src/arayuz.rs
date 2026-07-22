@@ -157,12 +157,7 @@ impl ArayuzGrafik {
                         right: guvenli_i32((alan.sol + alan.genislik).min(ekran_genisligi)),
                         bottom: guvenli_i32((alan.ust + alan.yukseklik).min(ekran_yuksekligi)),
                     },
-                    default_color: Color::rgba(
-                        renk.kirmizi,
-                        renk.yesil,
-                        renk.mavi,
-                        renk.alfa,
-                    ),
+                    default_color: Color::rgba(renk.kirmizi, renk.yesil, renk.mavi, renk.alfa),
                     angle: 0.0,
                     rotation_origin: None,
                 }

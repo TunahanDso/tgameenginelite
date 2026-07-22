@@ -1,6 +1,6 @@
 use tgame::onsoz::{
-    ArayuzPaneli, Dunya, EkranDikdortgeni, EkranMetni, EkranRengi, GorevAsamasi,
-    GorevIlerlemesi, Macera, Renk, SahneKimligi, Vektor3,
+    ArayuzPaneli, Dunya, EkranDikdortgeni, EkranMetni, EkranRengi, GorevAsamasi, GorevIlerlemesi,
+    Macera, Renk, SahneKimligi, Vektor3,
 };
 
 use crate::macera_icerigi::MaceraKimlikleri;
@@ -14,6 +14,9 @@ pub(crate) fn arayuzu_guncelle(
     kimlikler: &MaceraKimlikleri,
     oyuncu_konumu: Vektor3,
     gunluk_acik: bool,
+    oyuncu_can: f32,
+    muhafiz_can: f32,
+    bildirim: &str,
 ) {
     let gorev_ozeti = gorev_ozeti(macera, kimlikler);
     let yakin_etkilesim = macera
@@ -26,14 +29,40 @@ pub(crate) fn arayuzu_guncelle(
     let gorev_alani = EkranDikdortgeni::yeni(18.0, 18.0, 390.0, 112.0);
     arayuz.panel_ekle(ArayuzPaneli::yeni(gorev_alani, KARANLIK_PANEL));
     arayuz.metin_ekle(
-        EkranMetni::yeni("KAYIP MÜHÜR", EkranDikdortgeni::yeni(34.0, 30.0, 360.0, 28.0), 21.0)
-            .renk(EkranRengi::SARI),
+        EkranMetni::yeni(
+            "KAYIP MÜHÜR",
+            EkranDikdortgeni::yeni(34.0, 30.0, 360.0, 28.0),
+            21.0,
+        )
+        .renk(EkranRengi::SARI),
     );
     arayuz.metin_ekle(EkranMetni::yeni(
         gorev_ozeti,
         EkranDikdortgeni::yeni(34.0, 62.0, 350.0, 58.0),
         16.0,
     ));
+
+    let can_alani = EkranDikdortgeni::yeni(18.0, 140.0, 280.0, 54.0);
+    arayuz.panel_ekle(ArayuzPaneli::yeni(can_alani, KARANLIK_PANEL));
+    arayuz.metin_ekle(EkranMetni::yeni(
+        format!(
+            "CAN {:>3.0}%   MUHAFIZ {:>3.0}%",
+            oyuncu_can * 100.0,
+            muhafiz_can * 100.0
+        ),
+        EkranDikdortgeni::yeni(34.0, 155.0, 250.0, 28.0),
+        16.0,
+    ));
+    if !bildirim.is_empty() {
+        arayuz.metin_ekle(
+            EkranMetni::yeni(
+                bildirim,
+                EkranDikdortgeni::yeni(320.0, 20.0, 600.0, 34.0),
+                16.0,
+            )
+            .renk(EkranRengi::SARI),
+        );
+    }
 
     if gunluk_acik {
         gunluk_paneli_ekle(arayuz, macera, kimlikler);
@@ -56,7 +85,7 @@ pub(crate) fn arayuzu_guncelle(
 
     arayuz.metin_ekle(
         EkranMetni::yeni(
-            "WASD Hareket  •  E Etkileşim  •  Tab Günlük  •  F5/F9 Kayıt",
+            "WASD Hareket  •  E Etkileşim  •  F Saldırı  •  Tab Günlük  •  F5/F9 Kayıt",
             EkranDikdortgeni::yeni(18.0, 610.0, 700.0, 24.0),
             13.0,
         )
@@ -69,9 +98,7 @@ fn gorev_ozeti(macera: &Macera, kimlikler: &MaceraKimlikleri) -> String {
     match macera.gorev_asamasi(&kimlikler.gorev) {
         GorevAsamasi::Kilitli => "Gözcü Aras'ı bul ve onunla konuş.".to_owned(),
         GorevAsamasi::Etkin => etkin_gorev_ozeti(macera, kimlikler, ilerleme),
-        GorevAsamasi::Tamamlandi => {
-            "Görev tamamlandı\nUnvan: Mührün Varisi".to_owned()
-        }
+        GorevAsamasi::Tamamlandi => "Görev tamamlandı\nUnvan: Mührün Varisi".to_owned(),
         GorevAsamasi::Basarisiz => "Görev başarısız oldu.".to_owned(),
     }
 }
@@ -107,7 +134,9 @@ fn gunluk_paneli_ekle(
         .renk(EkranRengi::SARI),
     );
     let oynama = macera.oynama_suresi_milisaniye();
-    let sahne = macera.etkin_sahne().map_or("Bilinmiyor", SahneKimligi::deger);
+    let sahne = macera
+        .etkin_sahne()
+        .map_or("Bilinmiyor", SahneKimligi::deger);
     let metin = format!(
         "Sahne: {sahne}\n\nSis Pusulası: {}\nMühür Parçası: {}/3\n\nUnvan: {}\nOynama: {}.{:03} sn\n\nF5: Kaydet\nF9: Yükle\nR: Kontrol noktasına dön",
         macera.envanter().miktar(&kimlikler.pusula),
@@ -123,10 +152,7 @@ fn gunluk_paneli_ekle(
     ));
 }
 
-fn diyalog_paneli_ekle(
-    arayuz: &mut tgame::onsoz::Arayuz,
-    gorunum: &tgame::onsoz::DiyalogGorunumu,
-) {
+fn diyalog_paneli_ekle(arayuz: &mut tgame::onsoz::Arayuz, gorunum: &tgame::onsoz::DiyalogGorunumu) {
     let alan = EkranDikdortgeni::yeni(60.0, 402.0, 840.0, 198.0);
     arayuz.panel_ekle(ArayuzPaneli::yeni(alan, KARANLIK_PANEL));
     arayuz.metin_ekle(

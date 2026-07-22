@@ -1,7 +1,7 @@
 use tgame::onsoz::{
     AraziUreteci, Donusum3B, Dunya, FizikDunyasi, FizikGovdesi, Kamera3B, MalzemeKimligi,
-    MalzemeVerisi, MeshKimligi, ModelVerisi, OyunHatasi, OyunSonucu, Renk, Varlik,
-    VarlikKimligi, Vektor3, koni, kure, silindir,
+    MalzemeVerisi, MeshKimligi, ModelVerisi, OyunHatasi, OyunSonucu, Renk, Varlik, VarlikKimligi,
+    Vektor3, koni, kure, silindir,
 };
 
 pub(crate) const OYUNCU_OLCEGI: Vektor3 = Vektor3::yeni(0.75, 0.75, 0.75);
@@ -11,6 +11,7 @@ pub(crate) struct SahneKurulumu {
     pub(crate) fizik: FizikDunyasi,
     pub(crate) oyuncu: VarlikKimligi,
     pub(crate) merkez: VarlikKimligi,
+    pub(crate) muhafiz: VarlikKimligi,
     pub(crate) piramitler: Vec<VarlikKimligi>,
 }
 
@@ -26,7 +27,7 @@ pub(crate) fn sahneyi_olustur() -> OyunSonucu<SahneKurulumu> {
 
     araziyi_ekle(&mut dunya, &mut fizik)?;
     dogal_cevreyi_ekle(&mut dunya, &mut fizik)?;
-    macera_isaretlerini_ekle(&mut dunya)?;
+    let muhafiz = macera_isaretlerini_ekle(&mut dunya)?;
 
     let piramit_mesh = piramit_meshini_yukle(&mut dunya)?;
     let alternatif_malzeme =
@@ -69,6 +70,7 @@ pub(crate) fn sahneyi_olustur() -> OyunSonucu<SahneKurulumu> {
         fizik,
         oyuncu,
         merkez,
+        muhafiz,
         piramitler,
     })
 }
@@ -81,9 +83,8 @@ fn araziyi_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) -> OyunSonucu {
         let patika = (-x.abs() * 0.08).max(-0.28);
         -0.52 + dalga * kenar_etkisi + patika * kenar_etkisi
     })?;
-    let arazi_mesh = dunya.mesh_ekle(arazi.mesh_uret(MalzemeVerisi::yeni(Renk::yeni(
-        0.16, 0.36, 0.18, 1.0,
-    )))?);
+    let arazi_mesh =
+        dunya.mesh_ekle(arazi.mesh_uret(MalzemeVerisi::yeni(Renk::yeni(0.16, 0.36, 0.18, 1.0)))?);
     dunya.varlik_ekle(Varlik::mesh("Sisli Köy Arazisi", arazi_mesh, Renk::BEYAZ));
 
     let taban_olcegi = Vektor3::yeni(13.0, 0.18, 13.0);
@@ -133,24 +134,26 @@ fn dogal_cevreyi_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) -> OyunSonucu
     for (sira, (x, z, olcek)) in agaclar.into_iter().enumerate() {
         let govde_konumu = Vektor3::yeni(x, 0.45 * olcek, z);
         dunya.varlik_ekle(
-            Varlik::mesh(format!("Ağaç Gövdesi {}", sira + 1), govde_mesh, Renk::BEYAZ)
-                .donusum3b(
-                    Donusum3B::yeni()
-                        .konum(govde_konumu)
-                        .olcek(Vektor3::yeni(olcek, olcek, olcek)),
-                ),
+            Varlik::mesh(
+                format!("Ağaç Gövdesi {}", sira + 1),
+                govde_mesh,
+                Renk::BEYAZ,
+            )
+            .donusum3b(
+                Donusum3B::yeni()
+                    .konum(govde_konumu)
+                    .olcek(Vektor3::yeni(olcek, olcek, olcek)),
+            ),
         );
         dunya.varlik_ekle(
-            Varlik::mesh(format!("Ağaç Tacı {}", sira + 1), tac_mesh, Renk::BEYAZ)
-                .donusum3b(
-                    Donusum3B::yeni()
-                        .konum(Vektor3::yeni(x, 2.35 * olcek, z))
-                        .olcek(Vektor3::yeni(olcek, olcek, olcek)),
-                ),
+            Varlik::mesh(format!("Ağaç Tacı {}", sira + 1), tac_mesh, Renk::BEYAZ).donusum3b(
+                Donusum3B::yeni()
+                    .konum(Vektor3::yeni(x, 2.35 * olcek, z))
+                    .olcek(Vektor3::yeni(olcek, olcek, olcek)),
+            ),
         );
         let engel = dunya.varlik_ekle(
-            Varlik::yeni("Ağaç Çarpışması")
-                .donusum3b(Donusum3B::yeni().konum(govde_konumu)),
+            Varlik::yeni("Ağaç Çarpışması").donusum3b(Donusum3B::yeni().konum(govde_konumu)),
         );
         fizik.govde_ekle(FizikGovdesi::statik_kup(
             engel,
@@ -187,7 +190,7 @@ fn dogal_cevreyi_ekle(dunya: &mut Dunya, fizik: &mut FizikDunyasi) -> OyunSonucu
     Ok(())
 }
 
-fn macera_isaretlerini_ekle(dunya: &mut Dunya) -> OyunSonucu {
+fn macera_isaretlerini_ekle(dunya: &mut Dunya) -> OyunSonucu<VarlikKimligi> {
     let insan_govdesi = dunya.mesh_ekle(silindir(
         12,
         0.34,
@@ -202,22 +205,15 @@ fn macera_isaretlerini_ekle(dunya: &mut Dunya) -> OyunSonucu {
         MalzemeVerisi::yeni(Renk::yeni(0.78, 0.58, 0.38, 1.0)),
     )?);
     dunya.varlik_ekle(
-        Varlik::mesh("Gözcü Aras Gövdesi", insan_govdesi, Renk::BEYAZ).donusum3b(
-            Donusum3B::yeni().konum(Vektor3::yeni(0.0, 0.25, 2.0)),
-        ),
+        Varlik::mesh("Gözcü Aras Gövdesi", insan_govdesi, Renk::BEYAZ)
+            .donusum3b(Donusum3B::yeni().konum(Vektor3::yeni(0.0, 0.25, 2.0))),
     );
     dunya.varlik_ekle(
         Varlik::mesh("Gözcü Aras Başı", bas_mesh, Renk::BEYAZ)
             .donusum3b(Donusum3B::yeni().konum(Vektor3::yeni(0.0, 1.3, 2.0))),
     );
 
-    let muhur_mesh = dunya.mesh_ekle(kure(
-        14,
-        8,
-        0.34,
-        0.06,
-        MalzemeVerisi::new(Renk::BEYAZ),
-    )?);
+    let muhur_mesh = dunya.mesh_ekle(kure(14, 8, 0.34, 0.06, MalzemeVerisi::yeni(Renk::BEYAZ))?);
     let muhur_malzemeleri = [
         dunya.malzeme_ekle(MalzemeVerisi::yeni(Renk::YESIL)),
         dunya.malzeme_ekle(MalzemeVerisi::yeni(Renk::MAVI)),
@@ -249,14 +245,14 @@ fn macera_isaretlerini_ekle(dunya: &mut Dunya) -> OyunSonucu {
         0.32,
         MalzemeVerisi::yeni(Renk::yeni(0.42, 0.12, 0.10, 1.0)),
     )?);
-    dunya.varlik_ekle(
+    let muhafiz = dunya.varlik_ekle(
         Varlik::mesh("Taş Muhafız", muhafiz_mesh, Renk::BEYAZ).donusum3b(
             Donusum3B::yeni()
                 .konum(Vektor3::yeni(0.0, 0.45, -4.8))
                 .olcek(Vektor3::yeni(1.0, 1.75, 1.0)),
         ),
     );
-    Ok(())
+    Ok(muhafiz)
 }
 
 fn piramit_meshini_yukle(dunya: &mut Dunya) -> OyunSonucu<MeshKimligi> {

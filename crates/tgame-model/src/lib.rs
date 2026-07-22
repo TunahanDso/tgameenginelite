@@ -1,5 +1,7 @@
 //! Tgame Engine Lite genel mesh, malzeme, doku ve glTF/GLB yükleme katmanı.
 
+pub mod uretim;
+
 use std::{collections::BTreeMap, path::Path};
 
 use gltf::{
