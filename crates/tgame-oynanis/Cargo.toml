@@ -1,0 +1,14 @@
+[package]
+name = "tgame-oynanis"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+tgame-matematik = { path = "../tgame-matematik" }
+tgame-varlik = { path = "../tgame-varlik" }
+
+[lints]
+workspace = true
