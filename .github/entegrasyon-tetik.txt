@@ -1,1 +1,0 @@
-Ekran arayüzü, doğal dünya, savaş, AI ve ses olayları entegrasyonunu çalıştır.
