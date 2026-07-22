@@ -86,3 +86,5 @@ jobs:
           git add crates/tgame-varlik/src/lib.rs crates/tgame/src/lib.rs
           git commit -m "Dunya arayuz deposunu ve ust APIyi bagla"
           git push origin HEAD:agent/ilk-moduler-iskelet
+
+# Tetikleme commit'i tamamlandı.
