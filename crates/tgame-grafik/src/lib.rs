@@ -1,10 +1,12 @@
 //! Tgame Engine Lite GPU grafik katmanı.
 
+mod arayuz;
 mod ikiboyut;
 mod ucboyut;
 
 use std::sync::Arc;
 
+use arayuz::ArayuzGrafik;
 use ikiboyut::IkiBoyutGrafik;
 use tgame_cekirdek::{Cozunurluk, OyunHatasi, OyunSonucu};
 use tgame_varlik::{Dunya, DunyaBoyutu};
@@ -22,6 +24,7 @@ pub struct Grafik {
     yapilandirma: wgpu::SurfaceConfiguration,
     ikiboyut: IkiBoyutGrafik,
     ucboyut: UcBoyutGrafik,
+    arayuz: ArayuzGrafik,
     boyut: Cozunurluk,
 }
 
@@ -60,6 +63,7 @@ impl Grafik {
             .ok_or_else(|| OyunHatasi::yeni("GPU, pencere yüzeyini desteklemiyor."))?;
         let ikiboyut = IkiBoyutGrafik::yeni(&aygit, yapilandirma.format);
         let ucboyut = UcBoyutGrafik::yeni(&aygit, &kuyruk, yapilandirma.format, boyut);
+        let arayuz = ArayuzGrafik::yeni(&aygit, &kuyruk, yapilandirma.format);
 
         yuzey.configure(&aygit, &yapilandirma);
 
@@ -73,6 +77,7 @@ impl Grafik {
             yapilandirma,
             ikiboyut,
             ucboyut,
+            arayuz,
             boyut,
         })
     }
@@ -94,8 +99,9 @@ impl Grafik {
     ///
     /// # Errors
     ///
-    /// GPU mesh veya örnek tamponu oluşturulamazsa, GPU yüzeyi kaybolur ve yeniden
-    /// oluşturulamazsa ya da yüzey doğrulama hatası oluşursa [`OyunHatasi`] döndürür.
+    /// GPU mesh, arayüz veya örnek tamponu oluşturulamazsa; GPU yüzeyi kaybolur
+    /// ve yeniden oluşturulamazsa ya da yüzey doğrulama hatası oluşursa
+    /// [`OyunHatasi`] döndürür.
     pub fn ciz(&mut self, dunya: &Dunya) -> OyunSonucu {
         let ikiboyut_ornek_sayisi = match dunya.boyut() {
             DunyaBoyutu::IkiBoyut => Some(self.ikiboyut.hazirla(
@@ -116,6 +122,13 @@ impl Grafik {
                 None
             }
         };
+        self.arayuz.hazirla(
+            &self.aygit,
+            &self.kuyruk,
+            dunya.arayuz(),
+            self.yapilandirma.width,
+            self.yapilandirma.height,
+        )?;
 
         let (kare, yeniden_yapilandir) = match self.yuzey.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(kare) => (kare, false),
@@ -156,6 +169,7 @@ impl Grafik {
                 self.ucboyut.kaydet(&mut komut_kaydedici, &gorunum);
             }
         }
+        self.arayuz.kaydet(&mut komut_kaydedici, &gorunum)?;
 
         self.kuyruk.submit(Some(komut_kaydedici.finish()));
         self.kuyruk.present(kare);
@@ -189,6 +203,11 @@ impl Grafik {
                 .yuzey_bicimini_degistir(&self.aygit, yeni_yapilandirma.format);
             self.ucboyut
                 .yuzey_bicimini_degistir(&self.aygit, yeni_yapilandirma.format);
+            self.arayuz.yuzey_bicimini_degistir(
+                &self.aygit,
+                &self.kuyruk,
+                yeni_yapilandirma.format,
+            );
         }
 
         yeni_yuzey.configure(&self.aygit, &yeni_yapilandirma);
