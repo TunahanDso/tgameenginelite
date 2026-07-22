@@ -1,0 +1,36 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/tgame",
+    "crates/tgame-arayuz",
+    "crates/tgame-cekirdek",
+    "crates/tgame-fizik",
+    "crates/tgame-girdi",
+    "crates/tgame-grafik",
+    "crates/tgame-matematik",
+    "crates/tgame-macera",
+    "crates/tgame-model",
+    "crates/tgame-oynanis",
+    "crates/tgame-pencere",
+    "crates/tgame-sahne",
+    "crates/tgame-mod",
+    "crates/tgame-varlik",
+    "crates/tgame-zaman",
+    "examples/ikiboyut-oyun",
+    "examples/ilk-oyun",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.87"
+authors = ["TunahanDso"]
+repository = "https://github.com/TunahanDso/tgameenginelite"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+warnings = "deny"
+
+[workspace.lints.clippy]
+all = "deny"
+pedantic = "deny"

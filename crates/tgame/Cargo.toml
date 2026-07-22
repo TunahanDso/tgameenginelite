@@ -1,0 +1,25 @@
+[package]
+name = "tgame"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+tgame-arayuz = { path = "../tgame-arayuz" }
+tgame-cekirdek = { path = "../tgame-cekirdek" }
+tgame-fizik = { path = "../tgame-fizik" }
+tgame-girdi = { path = "../tgame-girdi" }
+tgame-matematik = { path = "../tgame-matematik" }
+tgame-macera = { path = "../tgame-macera" }
+tgame-mod = { path = "../tgame-mod" }
+tgame-model = { path = "../tgame-model" }
+tgame-oynanis = { path = "../tgame-oynanis" }
+tgame-pencere = { path = "../tgame-pencere" }
+tgame-sahne = { path = "../tgame-sahne" }
+tgame-varlik = { path = "../tgame-varlik" }
+tgame-zaman = { path = "../tgame-zaman" }
+
+[lints]
+workspace = true

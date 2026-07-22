@@ -1,0 +1,18 @@
+[package]
+name = "ilk-oyun"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+autobins = false
+
+[[bin]]
+name = "ilk-oyun"
+path = "src/oyun.rs"
+
+[dependencies]
+tgame = { path = "../../crates/tgame" }
+
+[lints]
+workspace = true
