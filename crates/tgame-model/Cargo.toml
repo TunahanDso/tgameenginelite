@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 gltf = { version = "1.4.1", features = ["import"] }
+num-traits = "0.2.19"
 tgame-cekirdek = { path = "../tgame-cekirdek" }
 tgame-matematik = { path = "../tgame-matematik" }
 
